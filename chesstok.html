@@ -1,0 +1,1541 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChessTok</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+<style>
+* {
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+:root {
+    --bg:#0c0d10;
+    --panel:#15171c;
+    --panel2:#1d2027;
+    --border:#292d36;
+    --muted:#9298a5;
+    --accent:#ef426f;
+    --accent2:#c82d59;
+}
+
+body {
+    background:var(--bg);
+    color:#f5f5f7;
+    font-family:Arial,sans-serif;
+    overflow:hidden;
+}
+
+button {
+    cursor:pointer;
+    color:white;
+    font-family:inherit;
+    transition:background .15s,transform .15s;
+}
+
+button:active {
+    transform:scale(.96);
+}
+
+header {
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:62px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 25px;
+    background:#101116;
+    border-bottom:1px solid var(--border);
+    z-index:10;
+}
+
+.logo {
+    font-size:24px;
+    font-weight:900;
+    letter-spacing:-1px;
+    cursor:pointer;
+}
+
+.logo span {
+    color:var(--accent);
+}
+
+.header-center {
+    color:#a9adba;
+    font-size:13px;
+    font-weight:bold;
+    letter-spacing:1px;
+}
+
+.header-profile {
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#ed426f,#8938b8);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:17px;
+}
+
+/* HOME */
+
+#home {
+    position:absolute;
+    inset:62px 0 65px;
+    overflow-y:auto;
+    background:
+        radial-gradient(ellipse at 50% 0%,#291724 0%,transparent 48%),
+        var(--bg);
+    padding:30px 22px;
+}
+
+.home-content {
+    max-width:850px;
+    margin:auto;
+}
+
+.welcome {
+    margin-top:30px;
+    margin-bottom:35px;
+    padding:35px;
+    border:1px solid #392633;
+    border-radius:16px;
+    background:linear-gradient(130deg,#211720,#17171d 65%,#171b22);
+    position:relative;
+    overflow:hidden;
+}
+
+.welcome:after {
+    content:"♟";
+    position:absolute;
+    right:35px;
+    top:10px;
+    font-size:155px;
+    color:#ffffff09;
+    pointer-events:none;
+}
+
+.eyebrow {
+    color:var(--accent);
+    font-size:11px;
+    font-weight:bold;
+    letter-spacing:2px;
+    margin-bottom:15px;
+}
+
+.welcome h1 {
+    font-size:42px;
+    letter-spacing:-2px;
+    margin-bottom:12px;
+    position:relative;
+    z-index:1;
+}
+
+.welcome h1 span {
+    color:var(--accent);
+}
+
+.welcome p {
+    color:#aeb0bb;
+    line-height:1.7;
+    max-width:470px;
+    font-size:14px;
+    position:relative;
+    z-index:1;
+}
+
+.home-buttons {
+    display:flex;
+    gap:12px;
+    margin-top:24px;
+    flex-wrap:wrap;
+    position:relative;
+    z-index:1;
+}
+
+.primary-btn {
+    background:var(--accent);
+    border:0;
+    border-radius:8px;
+    padding:13px 22px;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.primary-btn:hover {
+    background:var(--accent2);
+}
+
+.secondary-btn {
+    background:#292831;
+    border:1px solid #44404a;
+    border-radius:8px;
+    padding:13px 22px;
+    font-size:14px;
+}
+
+.secondary-btn:hover {
+    background:#373541;
+}
+
+.section-heading {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:32px 0 14px;
+}
+
+.section-title {
+    font-size:17px;
+    font-weight:bold;
+}
+
+.section-subtitle {
+    font-size:11px;
+    color:var(--muted);
+}
+
+.stats {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:13px;
+}
+
+.stat {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:11px;
+    padding:19px;
+    transition:background .2s;
+}
+
+.stat:hover {
+    background:var(--panel2);
+}
+
+.stat-icon {
+    font-size:18px;
+    margin-bottom:13px;
+}
+
+.stat strong {
+    display:block;
+    font-size:25px;
+    margin-bottom:5px;
+}
+
+.stat small {
+    color:var(--muted);
+    font-size:12px;
+}
+
+.home-card {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:11px;
+    padding:18px;
+    margin-top:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+    transition:border .2s,background .2s;
+}
+
+.home-card:hover {
+    background:#1b1d24;
+    border-color:#55505c;
+}
+
+.home-card-left {
+    display:flex;
+    gap:14px;
+    align-items:center;
+}
+
+.home-card-icon {
+    width:43px;
+    height:43px;
+    border-radius:10px;
+    background:#28232e;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:20px;
+    flex-shrink:0;
+}
+
+.home-card strong {
+    font-size:14px;
+}
+
+.home-card p {
+    color:var(--muted);
+    font-size:12px;
+    margin-top:5px;
+}
+
+.home-card button {
+    background:#292c35;
+    border:1px solid #3a3d47;
+    border-radius:7px;
+    padding:10px 15px;
+    flex-shrink:0;
+    font-size:12px;
+}
+
+.home-card button:hover {
+    background:#3b3e49;
+}
+
+.home-info {
+    color:#737987;
+    font-size:11px;
+    line-height:1.8;
+    margin:35px 0 10px;
+    padding-top:20px;
+    border-top:1px solid var(--border);
+}
+
+/* FEED */
+
+.feed {
+    position:absolute;
+    top:62px;
+    bottom:65px;
+    width:100%;
+    overflow-y:auto;
+    scroll-snap-type:y mandatory;
+    scrollbar-width:none;
+    display:none;
+    background:#090a0d;
+}
+
+.feed::-webkit-scrollbar {
+    display:none;
+}
+
+.post {
+    height:100%;
+    min-height:100%;
+    scroll-snap-align:start;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    position:relative;
+    padding:15px;
+    background:
+        radial-gradient(ellipse at center,#17191e 0%,#0b0c0f 75%);
+}
+
+.game {
+    width:min(88vw,440px);
+    margin:auto;
+}
+
+.info {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+}
+
+.username {
+    font-weight:bold;
+    font-size:14px;
+}
+
+.caption {
+    color:var(--muted);
+    font-size:12px;
+    margin-top:5px;
+}
+
+.status {
+    color:#b1b5c0;
+    font-size:11px;
+    text-align:right;
+    background:#24262e;
+    padding:6px 9px;
+    border-radius:5px;
+}
+
+/* CHESSBOARD STYLES UNCHANGED */
+
+.board {
+    width:100%;
+    aspect-ratio:1 / 1;
+    display:grid;
+    grid-template-columns:repeat(8,minmax(0,1fr));
+    grid-template-rows:repeat(8,minmax(0,1fr));
+    border:10px solid #50321e;
+    border-radius:3px;
+    overflow:hidden;
+    box-shadow:0 8px 20px #0009;
+    background:#50321e;
+}
+
+.square {
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    position:relative;
+    overflow:hidden;
+}
+
+.light {
+    background:#f0d9b5;
+}
+
+.dark {
+    background:#b58863;
+}
+
+.square img {
+    display:block;
+    width:88%;
+    height:88%;
+    object-fit:contain;
+    pointer-events:none;
+    user-select:none;
+}
+
+.square.last {
+    background:#c9c94d;
+}
+
+/* END OF UNCHANGED CHESSBOARD STYLES */
+
+.details {
+    display:flex;
+    justify-content:space-between;
+    margin-top:12px;
+    font-size:12px;
+    color:#a1a6b1;
+}
+
+.progress {
+    height:3px;
+    background:#30323a;
+    margin-top:12px;
+    overflow:hidden;
+    border-radius:5px;
+}
+
+.progress div {
+    height:100%;
+    width:0%;
+    background:var(--accent);
+}
+
+.actions {
+    position:absolute;
+    right:max(15px,calc((100vw - 600px)/2));
+    bottom:100px;
+    display:flex;
+    flex-direction:column;
+    gap:23px;
+    align-items:center;
+}
+
+.action {
+    border:0;
+    background:transparent;
+    color:white;
+    font-size:25px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+    text-shadow:0 2px 5px #000;
+}
+
+.action span {
+    width:43px;
+    height:43px;
+    border-radius:50%;
+    background:#292b33;
+    border:1px solid #41434c;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.action small {
+    font-size:10px;
+    color:#ddd;
+}
+
+.action.liked {
+    color:var(--accent);
+}
+
+.action.liked span {
+    background:#462331;
+    border-color:#713349;
+}
+
+.controls {
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-top:18px;
+}
+
+.controls button {
+    background:#24262e;
+    color:white;
+    border:1px solid #3a3d47;
+    padding:9px 18px;
+    border-radius:7px;
+    font-size:12px;
+}
+
+.controls button:hover {
+    background:#373a44;
+}
+
+/* COMMENTS */
+
+#commentOverlay {
+    display:none;
+    position:fixed;
+    inset:0;
+    background:#000b;
+    z-index:30;
+    align-items:flex-end;
+    justify-content:center;
+    backdrop-filter:blur(3px);
+}
+
+.comment-panel {
+    width:100%;
+    max-width:600px;
+    height:min(75vh,650px);
+    background:#17191f;
+    border:1px solid #343640;
+    border-bottom:0;
+    border-radius:17px 17px 0 0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 -10px 50px #0008;
+}
+
+.comment-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 20px;
+    border-bottom:1px solid var(--border);
+}
+
+.comment-header strong {
+    font-size:15px;
+}
+
+.comment-header button {
+    background:#292b33;
+    border:0;
+    border-radius:50%;
+    width:30px;
+    height:30px;
+    font-size:20px;
+}
+
+.comment-list {
+    flex:1;
+    overflow-y:auto;
+    padding:12px 20px;
+}
+
+.comment {
+    display:flex;
+    gap:12px;
+    padding:14px 0;
+    border-bottom:1px solid #292b33;
+}
+
+.avatar {
+    width:37px;
+    height:37px;
+    flex-shrink:0;
+    border-radius:50%;
+    background:linear-gradient(135deg,#353945,#242630);
+    border:1px solid #484b57;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:17px;
+}
+
+.comment-content {
+    flex:1;
+    min-width:0;
+}
+
+.comment-name {
+    color:#9298a5;
+    font-size:11px;
+    margin-bottom:6px;
+}
+
+.comment-text {
+    font-size:13px;
+    line-height:1.5;
+    overflow-wrap:anywhere;
+}
+
+.comment-likes {
+    color:#777e8b;
+    font-size:11px;
+    margin-top:7px;
+}
+
+.comment-input {
+    padding:14px;
+    border-top:1px solid var(--border);
+    display:flex;
+    gap:9px;
+    background:#14161b;
+}
+
+.comment-input input {
+    flex:1;
+    min-width:0;
+    background:#252831;
+    border:1px solid #3a3e49;
+    border-radius:22px;
+    padding:12px 16px;
+    color:white;
+    outline:none;
+    font-size:13px;
+}
+
+.comment-input input:focus {
+    border-color:#a13c5c;
+}
+
+.comment-input button {
+    background:var(--accent);
+    border:0;
+    border-radius:20px;
+    padding:0 19px;
+    font-weight:bold;
+    font-size:12px;
+}
+
+.comment-input button:hover {
+    background:var(--accent2);
+}
+
+/* FOOTER */
+
+footer {
+    height:65px;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:#101116;
+    border-top:1px solid var(--border);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:clamp(20px,9vw,90px);
+    z-index:10;
+}
+
+footer button {
+    background:none;
+    border:0;
+    font-size:11px;
+    color:#969ba8;
+    min-width:45px;
+}
+
+footer button:hover {
+    color:white;
+}
+
+footer span {
+    display:block;
+    font-size:20px;
+    margin-bottom:4px;
+}
+
+@media(max-width:550px) {
+    header {
+        padding:0 16px;
+    }
+
+    .header-center {
+        display:none;
+    }
+
+    .welcome {
+        padding:25px 20px;
+    }
+
+    .welcome h1 {
+        font-size:33px;
+    }
+
+    .welcome:after {
+        right:10px;
+        font-size:110px;
+    }
+
+    .stats {
+        gap:7px;
+    }
+
+    .stat {
+        padding:12px;
+    }
+
+    .stat strong {
+        font-size:20px;
+    }
+
+    .stat small {
+        font-size:10px;
+    }
+
+    .game {
+        width:min(84vw,440px);
+    }
+
+    .actions {
+        right:7px;
+    }
+
+    .action span {
+        width:37px;
+        height:37px;
+        font-size:21px;
+    }
+
+    footer {
+        gap:25px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo" onclick="showHome()">
+        Chess<span>Tok</span> ♟
+    </div>
+
+    <div class="header-center">RANDOM CHESS NETWORK</div>
+
+    <div class="header-profile">♟</div>
+</header>
+
+<div id="home">
+    <div class="home-content">
+
+        <div class="welcome">
+            <div class="eyebrow"></div>
+
+            <h1>Welcome to <span>ChessTok.</span></h1>
+
+            <p>
+                A social feed where every post is a random chess game
+                between two dumbass AIs. No ads, no marketing, just a
+                shit ton of the greatest game on gods green earth.
+            </p>
+
+            <div class="home-buttons">
+                <button class="primary-btn" onclick="openFeed()">
+                    ▶ &nbsp; Watch games
+                </button>
+
+                <button class="secondary-btn" onclick="newPost()">
+                    + &nbsp; Create game (under development)
+                </button>
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div class="section-title">Platform statistics</div>
+            <div class="section-subtitle">LIVE COUNTERS</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-icon">!</div>
+                <strong id="statGames">0</strong>
+                <small>Games you've watched</small>
+            </div>
+
+            <div class="stat">
+                <div class="stat-icon">!</div>
+                <strong>
+	2,147,483,647
+</strong>
+                <small>Current Games on the platform</small>
+            </div>
+
+            <div class="stat">
+                <div class="stat-icon">!</div>
+                <strong>
+	2,227,453,919
+</strong>
+                <small>Comments</small>
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div class="section-title">For you:</div>
+            <div class="section-subtitle">DISCOVER</div>
+        </div>
+
+        <div class="home-card">
+            <div class="home-card-left">
+                <div class="home-card-icon">▶</div>
+                <div>
+                    <strong>Your feed</strong>
+                </div>
+            </div>
+            <button onclick="openFeed()">Take me to it</button>
+        </div>
+
+        <div class="home-card">
+            <div class="home-card-left">
+                <div class="home-card-icon">CHM</div>
+                <div>
+                    <strong>Random match</strong>
+                </div>
+            </div>
+            <button onclick="newPost()">Explore</button>
+        </div>
+
+        <div class="home-card">
+            <div class="home-card-left">
+                <div class="home-card-icon">💬</div>
+                <div>
+                    <strong>Beta branch</strong>
+                </div>
+            </div>
+            <button onclick="openFeed()">Load</button>
+        </div>
+
+        <div class="home-info">
+            CHESSTOK · RANDOM CHESS NETWORK<br>
+            All games use legal chess moves.<br>
+            Games are generated automatically.
+        </div>
+
+    </div>
+</div>
+
+<div class="feed" id="feed"></div>
+
+<div id="commentOverlay" onclick="overlayClick(event)">
+    <div class="comment-panel">
+
+        <div class="comment-header">
+            <strong id="commentTitle">Comments</strong>
+            <button onclick="closeComments()">×</button>
+        </div>
+
+        <div class="comment-list" id="commentList"></div>
+
+        <div class="comment-input">
+            <input
+                id="commentInput"
+                placeholder="Add a comment..."
+                maxlength="300"
+                onkeydown="if(event.key==='Enter')sendComment()"
+            >
+            <button onclick="sendComment()">Post</button>
+        </div>
+
+    </div>
+</div>
+
+<footer>
+    <button onclick="showHome()">
+        <span>⌂</span>Home
+    </button>
+
+    <button onclick="openFeed()">
+        <span>♟</span>For You
+    </button>
+
+    <button onclick="newPost()">
+        <span>＋</span>New game
+    </button>
+
+    <button onclick="toggleAll()">
+        <span>Ⅱ</span>Pause
+    </button>
+</footer>
+
+<script>
+const pieces = {
+    K:"k", Q:"q", R:"r", B:"b", N:"n", P:"p",
+    k:"k", q:"q", r:"r", b:"b", n:"n", p:"p"
+};
+
+function pieceImage(piece) {
+    const color =
+        piece === piece.toUpperCase() ? "l" : "d";
+
+    return `https://commons.wikimedia.org/wiki/Special:FilePath/Chess_${pieces[piece]}${color}t45.svg`;
+}
+
+const names = [
+    "Yanito932","TheSkronl","BigBabyBlunder",
+    "Knight112","Stockfish-Official","Pawnhub",
+    "TheRealRook","TheChessAnon","CastleCuck","GoogleEnPassant",
+    "BishopBridge","Gamebit","ChessGoblin",
+    "AdolfRookler","I_Got_Sacrificed","CheckmateMachine",
+    "Mr-Rook6000","KnightForker","TheWizard",
+    "RandomMancer"
+];
+
+const captions = [
+    "NEW MATCHES EVERY MONDAY",
+    "This retard hated Verity so I beat his ass",
+    "I can't fucking take it anymore",
+    "Sign up for a free course in the comments",
+    "Chess, but my opponent is retarded",
+    "I love chess <3",
+    "Can either player find checkmate?",
+    "GGs to my opponent",
+    "I made a big blunder",
+    "Why play deltarune when you got ts"
+];
+
+const possibleComments = [
+"WHAT WAS THAT MOVE TWIN IM CRINE",
+"Bro just sacrificed the queen.",
+"HE SACRIFICES THE ROOOKKKKKKKK",
+"Stockfish is crying in the fucking corner",
+"Actually a brilliant move (Slowed + phonk)",
+"I want to be as bad as this guy",
+"Why am I even still alive? I just don't feel like I want to live anymore.",
+"Hot checkmate boner incoming.",
+"Why would you move there retard?",
+"God I hate black (Im not racist)",
+"White might be special",
+"That pawn finna get ptsd",
+"YOOOOOOOOO",
+"Someone call an arbiter.",
+"That opening is crazy.",
+"Never seen this before.",
+"Random chess is the best chess.",
+"That bishop is trapped.",
+"Protect your king!",
+"That was almost a blunder.",
+"En passant??",
+"Google en passant.",
+"New response just dropped.",
+"Actual zombie chess.",
+"Call the chess police.",
+"Pawn to the moon.",
+"Knight jumpscare.",
+"Queen casually disappearing.",
+"That king has no protection.",
+"Somebody is definitely winning.",
+"Somebody is definitely losing.",
+"Wait, that was legal?",
+"How is this game still going?",
+"Best game I've ever seen.",
+"Absolute cinema.",
+"Peak chess content.",
+"ChessTok never disappoints.",
+"That move deserves a replay.",
+"WHAT IS HAPPENING",
+"That rook is carrying.",
+"Imagine losing like this.",
+"Imagine winning like this.",
+"Bro forgot about the bishop.",
+"That knight fork was personal.",
+"Beautiful pawn structure.",
+"What is the evaluation?",
+"Engine says this is a draw.",
+"Engine has left the building.",
+"That was a questionable decision.",
+"Why is the king walking?",
+"King adventure!",
+"That pawn is unstoppable.",
+"Never resign.",
+"Never back down.",
+"Someone explain this position.",
+"That is actually impressive.",
+"Random number generator is cooking.",
+"That was a massive blunder.",
+"NOOO THE QUEEN",
+"White has a plan. Maybe.",
+"Black has a plan. Maybe.",
+"Chess is not real. Wake up sheeple. Big chess is trying to rape your wife and you know it.",
+"I HATE HIM I HATE HIM",
+"I would have played that too... definetly",
+"10/10 strategy from this piece of shit",
+"0/10 king safety.",
+"That rook needs a raise.",
+"Can we get a rematch?",
+"That was personal.",
+"The cuck fork is crazy",
+"Pawn promotion when?",
+"That knight is lost.",
+"Why is nobody castling?",
+"Castling is overrated apparently.",
+"Someone protect the back rank.",
+"That move was unexpected.",
+"Pure genius",
+"Pure confusion",
+"I understand nothing.",
+"Neither player understands anything.",
+"Who gave these clowns a chessboard?",
+"HE WAS COOKING SHIT IN A KEETLE",
+"Both players are burning",
+"That is a very interesting move.",
+"That's a free piece!",
+"That pawn is the main character.",
+"THE FORK!",
+"That king is in danger.",
+"Black needs to lock in cuh",
+"White needs to lock in cyh",
+"White got fucked like a child at a diddy party",
+"That was painful.",
+"Can the bishop move there?",
+"Wait for the ending.",
+"This is better than TV.",
+"Corny ass chess game",
+"Random chess is unpredictable.",
+"That move changed everything.",
+"How many moves will this last?",
+"Draw incoming.",
+"CHECK!",
+"CHECKMATE!",
+"That king cannot catch a break.",
+"Somebody forgot the rules.",
+"Someone is about to get forked.",
+"That is one brave pawn.",
+"Queen side is looking dangerous.",
+"Kingside attack!",
+"That was a sneaky move.",
+"Not the knight sacrifice.",
+"Bro is playing 4D chess.",
+"Bro is playing checkers.",
+"Absolutely no opening theory.",
+"An opening theory was attempted.",
+"That is a strange position.",
+"Can we get this on a chess stream?",
+"Who is controlling these players?",
+"Nobody is controlling these players.",
+"The computer is having fun.",
+"That was actually legal.",
+"Most chaotic game ever.",
+"Wait until the next move.",
+"ChessTok is peak entertainment.",
+"Another day, another blunder.",
+"Beautiful chaos.",
+"That endgame is wild.",
+"Why is the queen there?",
+"That pawn is going places.",
+"Somebody please take the rook.",
+"That bishop is sneaky.",
+"Never trust a random knight.",
+"That was a tactical masterpiece.",
+"Randomness is a strategy.",
+"THE KING WALK!",
+"Who let them cook?",
+"Let them cook.",
+"Stop cooking.",
+"That was a close one.",
+"Unbelievable.",
+"I need to see the next move."
+];
+
+const commentNames = [
+"PawnEnjoyer","ChessFan2000","KnightMain",
+"QueenCollector","RookEnjoyer","BishopMain",
+"Anonymous","ChessKid","GrandmasterMaybe",
+"DefinitelyHuman","BlunderEnjoyer","CheckmateFan",
+"RandomChessUser","KingSafetyFirst","EnPassantEnjoyer",
+"ChessGoblin","TheObserver","BoardWatcher",
+"PawnArmy","ChessCommenter"
+];
+
+const avatars = ["♟","♞","♜","♝","♛","♚","🔥","💀","👑","⚡"];
+
+let posts = [];
+let current = 0;
+let globalPaused = false;
+let nextID = 1;
+let activeCommentPost = null;
+
+function randomName() {
+    return names[Math.floor(Math.random()*names.length)];
+}
+
+function randomCaption() {
+    return captions[Math.floor(Math.random()*captions.length)];
+}
+
+function randomLikes() {
+    return Math.floor(Math.random()*100000);
+}
+
+function formatNumber(n) {
+    return n>=1000
+        ? (n/1000).toFixed(1)+"K"
+        : n;
+}
+
+function randomComment() {
+    return {
+        name:commentNames[Math.floor(Math.random()*commentNames.length)],
+        text:possibleComments[Math.floor(Math.random()*possibleComments.length)],
+        avatar:avatars[Math.floor(Math.random()*avatars.length)],
+        likes:Math.floor(Math.random()*300)
+    };
+}
+
+function createPost() {
+    const game = new Chess();
+
+    const post = {
+        id:nextID++,
+        game:game,
+        moves:0,
+        playing:true,
+        finished:false,
+        liked:false,
+        likes:randomLikes(),
+        comments:[],
+        white:randomName(),
+        black:randomName(),
+        caption:randomCaption(),
+        lastMove:null,
+        element:null,
+        timer:null,
+        speed:1
+    };
+
+    const amount=5+Math.floor(Math.random()*9);
+
+    for(let i=0;i<amount;i++) {
+        post.comments.push(randomComment());
+    }
+
+    posts.push(post);
+    renderPost(post);
+
+    document.getElementById("statGames").textContent =
+        posts.length;
+
+    return post;
+}
+
+function renderPost(post) {
+    const el=document.createElement("div");
+    el.className="post";
+
+    el.innerHTML=`
+        <div class="game">
+            <div class="info">
+                <div>
+                    <div class="username">
+                        @${post.white} vs @${post.black}
+                    </div>
+                    <div class="caption">${post.caption}</div>
+                </div>
+                <div class="status">Random game</div>
+            </div>
+
+            <div class="board"></div>
+
+            <div class="details">
+                <span class="turn">White to move</span>
+                <span class="move-count">0 moves</span>
+            </div>
+
+            <div class="progress"><div></div></div>
+
+            <div class="controls">
+                <button class="pause">Ⅱ Pause</button>
+                <button class="speed">1x Speed</button>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="action like">
+                <span>♥</span>
+                <small>${formatNumber(post.likes)}</small>
+            </button>
+
+            <button class="action comments">
+                <span>●</span>
+                <small>${post.comments.length}</small>
+            </button>
+
+            <button class="action share">
+                <span>↗</span>
+                <small>Share</small>
+            </button>
+
+            <button class="action new">
+                <span>♟</span>
+                <small>New game</small>
+            </button>
+        </div>
+    `;
+
+    post.element=el;
+
+    const board=el.querySelector(".board");
+
+    for(let i=0;i<64;i++) {
+        const sq=document.createElement("div");
+        sq.className="square";
+        board.appendChild(sq);
+    }
+
+    el.querySelector(".like").onclick=()=>{
+        post.liked=!post.liked;
+        post.likes+=post.liked?1:-1;
+
+        el.querySelector(".like").classList.toggle(
+            "liked",post.liked
+        );
+
+        el.querySelector(".like small").textContent =
+            formatNumber(post.likes);
+    };
+
+    el.querySelector(".comments").onclick=()=>{
+        openComments(post);
+    };
+
+    el.querySelector(".share").onclick=()=>{
+        const text="Check out this random ChessTok game!";
+
+        if(navigator.share) {
+            navigator.share({
+                title:"ChessTok",
+                text:text
+            }).catch(()=>{});
+        } else if(navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+            alert("Game description copied!");
+        } else {
+            alert(text);
+        }
+    };
+
+    el.querySelector(".new").onclick=newPost;
+
+    el.querySelector(".pause").onclick=()=>{
+        post.playing=!post.playing;
+
+        el.querySelector(".pause").textContent =
+            post.playing?"Ⅱ Pause":"▶ Play";
+    };
+
+    el.querySelector(".speed").onclick=()=>{
+        post.speed =
+            post.speed===1?2:
+            post.speed===2?4:1;
+
+        el.querySelector(".speed").textContent =
+            post.speed+"x Speed";
+    };
+
+    feed.appendChild(el);
+
+    drawBoard(post);
+}
+
+function drawBoard(post) {
+    const squares=post.element.querySelectorAll(".square");
+    const board=post.game.board();
+
+    for(let r=0;r<8;r++) {
+        for(let c=0;c<8;c++) {
+            const i=r*8+c;
+            const piece=board[r][c];
+            const sq=squares[i];
+
+            sq.className="square "+
+                ((r+c)%2===0?"light":"dark");
+
+            const squareName="abcdefgh"[c]+(8-r);
+
+            if(post.lastMove &&
+                (squareName===post.lastMove.from ||
+                 squareName===post.lastMove.to)) {
+                sq.classList.add("last");
+            }
+
+            sq.innerHTML="";
+
+            if(piece) {
+                const img=document.createElement("img");
+
+                const code=piece.color==="w"
+                    ?piece.type.toUpperCase()
+                    :piece.type;
+
+                img.src=pieceImage(code);
+                img.alt=(piece.color==="w"?"White ":"Black ")+piece.type;
+                img.draggable=false;
+
+                sq.appendChild(img);
+            }
+        }
+    }
+
+    const turn=post.game.turn()==="w"?"White":"Black";
+
+    post.element.querySelector(".turn").textContent =
+        post.finished?"Game finished":turn+" to move";
+
+    post.element.querySelector(".move-count").textContent =
+        post.moves+" moves";
+
+    post.element.querySelector(".status").textContent =
+        post.finished
+            ?post.game.in_checkmate()?"Checkmate!":"Draw"
+            :"Random game";
+
+    post.element.querySelector(".progress div").style.width =
+        Math.min(100,post.moves/100*100)+"%";
+}
+
+function makeMove(post) {
+    if(!post.playing||post.finished||globalPaused) return;
+
+    if(post.game.game_over()) {
+        finishPost(post);
+        return;
+    }
+
+    const moves=post.game.moves({verbose:true});
+
+    if(!moves.length) {
+        finishPost(post);
+        return;
+    }
+
+    const move=moves[Math.floor(Math.random()*moves.length)];
+
+    post.game.move({
+        from:move.from,
+        to:move.to,
+        promotion:"q"
+    });
+
+    post.moves++;
+    post.lastMove=move;
+
+    drawBoard(post);
+
+    if(post.game.game_over()) {
+        finishPost(post);
+    }
+}
+
+function finishPost(post) {
+    post.finished=true;
+    post.playing=false;
+    drawBoard(post);
+}
+
+function startPost(post) {
+    if(post.timer) clearInterval(post.timer);
+
+    post.timer=setInterval(()=>{
+        for(let i=0;i<post.speed;i++) {
+            makeMove(post);
+        }
+    },650);
+}
+
+/* COMMENTS */
+
+function openComments(post) {
+    activeCommentPost=post;
+
+    document.getElementById("commentOverlay").style.display="flex";
+
+    renderComments();
+
+    document.getElementById("commentInput").focus();
+}
+
+function renderComments() {
+    if(!activeCommentPost) return;
+
+    const list=document.getElementById("commentList");
+
+    list.innerHTML="";
+
+    activeCommentPost.comments.forEach(comment=>{
+        const item=document.createElement("div");
+        item.className="comment";
+
+        const avatar=document.createElement("div");
+        avatar.className="avatar";
+        avatar.textContent=comment.avatar;
+
+        const content=document.createElement("div");
+        content.className="comment-content";
+
+        const name=document.createElement("div");
+        name.className="comment-name";
+        name.textContent="@"+comment.name;
+
+        const text=document.createElement("div");
+        text.className="comment-text";
+        text.textContent=comment.text;
+
+        const likes=document.createElement("div");
+        likes.className="comment-likes";
+        likes.textContent="♥ "+comment.likes+" likes";
+
+        content.append(name,text,likes);
+        item.append(avatar,content);
+        list.appendChild(item);
+    });
+
+    document.getElementById("commentTitle").textContent =
+        activeCommentPost.comments.length+" comments";
+
+    activeCommentPost.element.querySelector(".comments small").textContent =
+        activeCommentPost.comments.length;
+}
+
+function sendComment() {
+    if(!activeCommentPost) return;
+
+    const input=document.getElementById("commentInput");
+    const text=input.value.trim();
+
+    if(!text) return;
+
+    activeCommentPost.comments.unshift({
+        name:"You",
+        text:text,
+        avatar:"🙂",
+        likes:0
+    });
+
+    input.value="";
+
+    renderComments();
+
+    document.getElementById("commentList").scrollTop=0;
+}
+
+function closeComments() {
+    document.getElementById("commentOverlay").style.display="none";
+    activeCommentPost=null;
+}
+
+function overlayClick(event) {
+    if(event.target.id==="commentOverlay") {
+        closeComments();
+    }
+}
+
+/* NAVIGATION */
+
+function showHome() {
+    document.getElementById("home").style.display="block";
+    document.getElementById("feed").style.display="none";
+}
+
+function openFeed() {
+    document.getElementById("home").style.display="none";
+    document.getElementById("feed").style.display="block";
+
+    if(posts.length===0) {
+        for(let i=0;i<5;i++) {
+            const post=createPost();
+            startPost(post);
+        }
+    }
+}
+
+function newPost() {
+    openFeed();
+
+    const post=createPost();
+    startPost(post);
+
+    post.element.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+    });
+}
+
+function topFeed() {
+    feed.scrollTo({
+        top:0,
+        behavior:"smooth"
+    });
+}
+
+function toggleAll() {
+    globalPaused=!globalPaused;
+}
+
+for(let i=0;i<5;i++) {
+    const post=createPost();
+    startPost(post);
+}
+
+feed.addEventListener("scroll",()=>{
+    if(
+        feed.scrollTop+feed.clientHeight>=
+        feed.scrollHeight-500
+    ) {
+        if(posts.length<30) {
+            const post=createPost();
+            startPost(post);
+        }
+    }
+});
+
+feed.addEventListener("scroll",()=>{
+    const elements=document.querySelectorAll(".post");
+
+    elements.forEach((el,i)=>{
+        const rect=el.getBoundingClientRect();
+
+        if(rect.top<window.innerHeight &&
+           rect.bottom>0) {
+            current=i;
+        }
+    });
+});
+
+showHome();
+</script>
+
+</body>
+</html>
