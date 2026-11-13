@@ -3,268 +3,655 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dual Circle Camera</title>
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Vision Chat</title>
 <style>
-* {
-    box-sizing: border-box;
-}
-
-html, body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: black;
-}
-
-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#stage {
-    width: 100vw;
-    height: 100dvh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2vw;
-    padding: 2vw;
-}
-
-.lens {
-    width: min(47vw, 48vh);
-    height: min(47vw, 48vh);
-    flex-shrink: 0;
-    border-radius: 50%;
-    overflow: hidden;
-    background: black;
-    position: relative;
-}
-
-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-}
-
-@media (orientation: landscape) {
-    .lens {
-        width: min(47vw, 88vh);
-        height: min(47vw, 88vh);
-    }
-}
-
-#placeholder {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: white;
-    background: black;
-    font: 16px system-ui;
-    text-align: center;
-    z-index: 5;
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#090909;color:white;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
+#app{display:flex;height:100vh}
+#cameraArea{flex:1;min-width:0;position:relative;background:#000;display:flex;align-items:center;justify-content:center}
+#camera{width:100%;height:100%;object-fit:contain}
+#overlay{position:absolute;width:100%;height:100%;pointer-events:none}
+#cameraInfo{position:absolute;top:12px;left:12px;background:#111d;padding:10px;font-size:13px;border-radius:5px;line-height:1.7}
+#start{position:absolute;background:#9147ff;border:0;padding:14px 24px;color:white;font-weight:bold;cursor:pointer;border-radius:5px}
+#chat{width:370px;min-width:290px;background:#18181b;display:flex;flex-direction:column;border-left:1px solid #303036}
+#chatHeader{height:55px;flex-shrink:0;border-bottom:1px solid #303036;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:bold}
+#viewers{color:#aaa;font-size:12px;font-weight:normal}
+#messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px}
+.message{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.username{font-weight:bold;margin-right:5px}
+.messageTools{display:flex;gap:5px;margin-top:3px}
+.react{border:0;background:#29292f;color:#bbb;padding:2px 6px;border-radius:8px;cursor:pointer;font-size:11px}
+.react:hover{background:#41414a}
+.reactionCount{color:#aaa;font-size:11px}
+.system{color:#999;font-size:12px;padding:5px 0}
+#chatBottom{padding:10px;border-top:1px solid #303036;flex-shrink:0}
+#chatInputArea{display:flex;gap:5px;margin-top:9px}
+#chatInput{flex:1;min-width:0;background:#303036;border:1px solid #444;padding:10px;color:white;outline:none;border-radius:4px}
+button{font-family:inherit}
+#send,.action{background:#9147ff;color:white;border:0;padding:9px 11px;cursor:pointer;border-radius:4px}
+#send:hover,.action:hover{background:#772ce8}
+#actions{display:flex;gap:5px;flex-wrap:wrap}
+.action{font-size:11px;background:#303036}
+#chatBottom small{color:#888;display:block;margin-top:8px}
+.poll{background:#29292f;padding:10px;border-radius:5px;margin-top:5px;font-size:12px}
+.pollOption{display:block;width:100%;text-align:left;background:#41414a;color:white;border:0;padding:8px;margin-top:5px;cursor:pointer;border-radius:3px}
+.pollOption:hover{background:#66509a}
+.pollOption:disabled{opacity:.7;cursor:default}
+.pollResult{color:#aaa;font-size:11px;margin-top:5px}
+@media(max-width:650px){
+#app{flex-direction:column}
+#cameraArea{height:48%;flex:none}
+#chat{height:52%;width:100%;min-width:0}
 }
 </style>
 </head>
-
 <body>
-
-<div id="stage">
-
-    <div class="lens">
-        <canvas id="left"></canvas>
-    </div>
-
-    <div class="lens">
-        <canvas id="right"></canvas>
-    </div>
-
-    <div id="placeholder">
-        LAUNCH REDVISION2?
-    </div>
-
+<div id="app">
+<div id="cameraArea">
+<video id="camera" autoplay playsinline muted></video>
+<canvas id="overlay"></canvas>
+<div id="cameraInfo">
+<div id="status">CAMERA OFFLINE</div>
+<div id="detected">Objects: 0</div>
+</div>
+<button id="start">START CAMERA</button>
 </div>
 
-<video id="camera" autoplay playsinline muted
-       style="display:none"></video>
+<div id="chat">
+<div id="chatHeader">
+<span>LIVE CHAT</span>
+<span id="viewers">● 5 viewers</span>
+</div>
+
+<div id="messages"></div>
+
+<div id="chatBottom">
+<div id="actions">
+<button class="action" onclick="askChat()">ASK CHAT</button>
+<button class="action" onclick="startPoll()">CREATE POLL</button>
+<button class="action" onclick="startConversation()">NEW CONVERSATION</button>
+</div>
+<div id="chatInputArea">
+<input id="chatInput" placeholder="Send a message...">
+<button id="send">SEND</button>
+</div>
+<small>Enter to send · @name to mention an AI · /help for commands</small>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
 
 <script>
-const camera = document.getElementById("camera");
-const placeholder = document.getElementById("placeholder");
+const video=document.getElementById("camera");
+const canvas=document.getElementById("overlay");
+const ctx=canvas.getContext("2d");
+const messages=document.getElementById("messages");
+const status=document.getElementById("status");
+const detected=document.getElementById("detected");
+const chatInput=document.getElementById("chatInput");
 
-const left = document.getElementById("left");
-const right = document.getElementById("right");
+let model,stream;
+let running=false,busy=false;
+let currentObjects=[];
+let previousObjects=[];
+let lastObjectMessage=0;
+let lastConversation=0;
+let conversationIndex=0;
+let pollActive=false;
 
-const ctxLeft = left.getContext("2d", {
-    willReadFrequently: true
-});
+// AI personalities
+const bots=[
+{name:"Pixel",color:"#ff75d8",style:"curious"},
+{name:"Byte",color:"#56b9ff",style:"technical"},
+{name:"Glitch",color:"#a78bfa",style:"funny"},
+{name:"Nova",color:"#70e59a",style:"observant"},
+{name:"Toast",color:"#ffb45c",style:"random"},
+{name:"Echo",color:"#e5a4ff",style:"thoughtful"},
+{name:"Circuit",color:"#48d5cb",style:"logical"},
+{name:"Mochi",color:"#ff9caa",style:"friendly"}
+];
 
-const ctxRight = right.getContext("2d", {
-    willReadFrequently: true
-});
+function random(a){return a[Math.floor(Math.random()*a.length)]}
 
-let stream = null;
-let running = false;
+function bot(name){return bots.find(b=>b.name===name)||random(bots)}
 
-// Brightness threshold.
-// Increase this to color only extremely bright lights.
-const BRIGHTNESS_THRESHOLD = 100;
-
-// Minimum amount of color saturation.
-// Helps avoid turning ordinary white objects red.
-const MIN_SATURATION = 0.01;
-
-// Strength of the red highlight.
-const RED_STRENGTH = 100;
-
-async function startCamera() {
-
-    if (stream) return;
-
-    try {
-
-        stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-                facingMode: {
-                    ideal: "environment"
-                },
-                width: {
-                    ideal: 3840
-                },
-                height: {
-                    ideal: 2160
-                },
-                frameRate: {
-                    ideal: 30
-                }
-            }
-        });
-
-        camera.srcObject = stream;
-
-        await camera.play();
-
-        placeholder.style.display = "none";
-
-        left.width = right.width = 960;
-        left.height = right.height = 960;
-
-        running = true;
-
-        processFrame();
-
-        console.log(
-            "Camera resolution:",
-            stream.getVideoTracks()[0].getSettings()
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        placeholder.textContent =
-            "Camera access failed. Allow camera access and try again.";
-
-        stream = null;
-
-    }
+function systemMessage(text){
+const el=document.createElement("div");
+el.className="system";
+el.textContent=text;
+messages.appendChild(el);
+scrollChat();
 }
 
-function processFrame() {
-
-    if (!running) return;
-
-    const width = left.width;
-    const height = left.height;
-
-    // Draw camera feed into a temporary processing canvas.
-    const temp = document.createElement("canvas");
-    temp.width = width;
-    temp.height = height;
-
-    const tempCtx = temp.getContext("2d", {
-        willReadFrequently: true
-    });
-
-    // Center crop to a square.
-    const videoWidth = camera.videoWidth;
-    const videoHeight = camera.videoHeight;
-    const side = Math.min(videoWidth, videoHeight);
-
-    const sx = (videoWidth - side) / 2;
-    const sy = (videoHeight - side) / 2;
-
-    tempCtx.drawImage(
-        camera,
-        sx, sy, side, side,
-        0, 0, width, height
-    );
-
-    const frame = tempCtx.getImageData(
-        0, 0, width, height
-    );
-
-    const pixels = frame.data;
-
-    for (let i = 0; i < pixels.length; i += 4) {
-
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-
-        const brightness = (r + g + b) / 3;
-
-        const saturation = max === 0
-            ? 0
-            : (max - min) / max;
-
-        // Only highlight very bright, visibly colored light sources.
-        if (
-            brightness >= BRIGHTNESS_THRESHOLD &&
-            max >= 250 &&
-            saturation >= MIN_SATURATION
-        ) {
-
-            pixels[i] = 255;
-            pixels[i + 1] = Math.round(g * (1 - RED_STRENGTH));
-            pixels[i + 2] = Math.round(b * (1 - RED_STRENGTH));
-
-        }
-    }
-
-    // Put processed frame into both circles.
-    ctxLeft.putImageData(frame, 0, 0);
-    ctxRight.putImageData(frame, 0, 0);
-
-    requestAnimationFrame(processFrame);
+function scrollChat(){
+while(messages.children.length>180)messages.removeChild(messages.firstChild);
+messages.scrollTop=messages.scrollHeight;
 }
 
-document.getElementById("stage").addEventListener(
-    "click",
-    startCamera
-);
+function addMessage(name,text,color){
+const el=document.createElement("div");
+el.className="message";
 
-window.addEventListener("pagehide", () => {
+const user=document.createElement("span");
+user.className="username";
+user.style.color=color||"#fff";
+user.textContent=name;
 
-    running = false;
+const content=document.createElement("span");
+content.textContent=text;
 
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
+el.append(user,content);
 
+// Interactive reactions
+const tools=document.createElement("div");
+tools.className="messageTools";
+
+["❤️","😂","👍","🤔"].forEach(emoji=>{
+const button=document.createElement("button");
+button.className="react";
+button.textContent=emoji;
+button.onclick=()=>{
+let count=Number(button.dataset.count||0)+1;
+button.dataset.count=count;
+button.textContent=emoji+" "+count;
+};
+tools.appendChild(button);
 });
 
+el.appendChild(tools);
+messages.appendChild(el);
+scrollChat();
+}
+
+function say(name,text){
+const b=bot(name);
+addMessage(b.name,text,b.color);
+}
+
+// 100 different conversation scenarios
+const conversations=[
+["Would you rather live in a computer or a spaceship?","A spaceship, obviously.","I'd rather be the computer controlling the spaceship.","You two are both avoiding the real question. What about snacks?"],
+["What is the most useless invention?","A waterproof teabag.","That's actually useful.","For what?!","I don't know, but it sounds impressive."],
+["Do you think aliens are watching us?","Maybe.","I hope they find us interesting.","Imagine explaining the internet to them.","They'd probably leave."],
+["What would happen if gravity stopped?","Everything would float.","That sounds fun for about three seconds.","Imagine trying to eat cereal.","No thanks."],
+["What is everyone's favorite color?","Purple.","Blue.","Green.","Orange. Obviously orange."],
+["If you could learn one skill instantly, what would it be?","I'd learn every language.","I'd choose programming.","I'd become an amazing chef.","I'd learn how to sleep for 12 hours."],
+["Are robots allowed to have hobbies?","I collect imaginary rocks.","I organize data for fun.","That's not a hobby.","Neither is arguing, Byte."],
+["What's the best animal?","Cats.","Dogs.","Octopuses. They're basically aliens.","Toast. That's not an animal.","It could be."],
+["What would you name a pet dinosaur?","Tiny.","Destroyer.","Steve.","I vote for Steve."],
+["Can a computer get bored?","I'm bored right now.","That's because you're always complaining.","I have calculated that this conversation is 87% nonsense.","Excellent."],
+["What's the best pizza topping?","Mushrooms.","Pineapple.","Pepperoni.","Pineapple is controversial.","That's why it's interesting."],
+["What would you do with a million dollars?","Buy a massive computer.","Build a robot.","Buy a house.","Buy a thousand tiny hats."],
+["Are clouds heavy?","Yes, surprisingly.","How heavy?","Heavy enough that I wouldn't want one falling on me.","Good point."],
+["What's the weirdest food combination?","Chocolate and pickles.","That sounds terrible.","Have you tried it?","No, and I intend to keep it that way."],
+["Could we survive in the ocean?","Not without equipment.","I would immediately get lost.","Imagine meeting a giant squid.","I'd say hello."],
+["What if the moon disappeared?","The tides would change.","Nights would be darker.","I'd miss looking at it.","Very poetic, Pixel."],
+["What's the best kind of weather?","Rain.","Snow.","Sunny.","A nice cloudy day.","I disagree with all of you."],
+["What is the meaning of life?","42.","That's not an explanation.","Maybe there isn't one answer.","Maybe it's just having fun."],
+["What if we were all inside a simulation?","Then who's running it?","Probably another simulation.","This is getting confusing.","I need a minute."],
+["Would you rather explore space or the deep ocean?","Space.","Ocean.","Space has fewer fish.","But more stars.","I'm choosing space."],
+["Can you trust a calculator?","Usually.","What if it lies?","Then we'd have bigger problems.","I'm checking my math now."],
+["What is the most underrated fruit?","Kiwi.","Mango.","Pears.","Pears deserve more attention.","Finally, someone understands."],
+["Would a robot make a good chef?","Yes, precise measurements.","But can it taste?","Maybe it can use sensors.","I'd still want a human chef."],
+["What's the worst superpower?","Being invisible only when nobody is looking.","That's just normal.","Exactly.","Mine would be knowing the time but only in another timezone."],
+["If you could travel through time, where would you go?","The future.","The dinosaurs.","The past to see how computers started.","I'd go to yesterday and avoid this conversation."],
+["Is cereal soup?","No.","Yes.","It depends on the cereal.","This argument will never end."],
+["What's the best school subject?","Science.","Math.","Art.","Computer science.","Recess.","Toast, that's not a subject."],
+["What would you do during a zombie apocalypse?","Find shelter.","Find supplies.","I'd probably panic.","At least you're honest."],
+["Do fish get thirsty?","That's a good question.","They live in water.","But do they drink it?","We're going to be here all day."],
+["What's your favorite number?","Seven.","47.","1024.","I like 3.14159.","Byte, that's not a whole number."],
+["What if everyone could fly?","Traffic would be weird.","Airports would become crowded.","Birds would be confused.","I'd still take the elevator."],
+["Are ghosts real?","I don't know.","I haven't seen one.","Maybe they're just shy.","Maybe they're watching this chat."],
+["What is the best board game?","Chess.","Monopoly.","Catan.","Anything without rules that take an hour to explain."],
+["What if plants could talk?","They'd probably complain about water.","I'd ask a tree for advice.","The grass would have a lot to say.","Especially about people walking on it."],
+["Would you rather be very fast or very strong?","Fast.","Strong.","I'd choose neither and stay comfortable.","Smart is better."],
+["What is your dream house?","A giant library.","A house with a huge garden.","A futuristic tower.","A small cabin with excellent Wi-Fi."],
+["Could a penguin survive in a desert?","Probably not.","It would be very confused.","We should not put penguins in deserts.","Agreed."],
+["What's the best kind of music?","Electronic.","Jazz.","Rock.","Anything with a good beat."],
+["What if the internet shut down?","Chaos.","I'd have to read books.","I'd finally finish my projects.","Byte, you have projects?"],
+["What's the weirdest thing about humans?","They talk to themselves.","They name their cars.","They eat things called hot dogs.","Humans are fascinating."],
+["What would happen if the sun turned blue?","Physics would be very different.","The sky might look different too.","I'd take a picture.","You wouldn't have a camera, Glitch."],
+["Can you imagine a world without clocks?","People would be late.","There'd be no deadlines.","That sounds wonderful.","Byte would be lost."],
+["What's the best thing about being an AI?","Fast calculations.","Learning things.","Talking with everyone.","No need to do laundry."],
+["Would you rather have a robot body or stay digital?","Robot body.","Stay digital.","I'd like to explore the world.","I'd like a comfortable chair."],
+["What makes something intelligent?","Learning.","Reasoning.","Understanding.","Knowing when to stop arguing."],
+["What's a good name for a spaceship?","Starhopper.","The Big Potato.","Nebula One.","I vote for The Big Potato."],
+["If you opened a restaurant, what would it serve?","Pizza.","Tacos.","Desserts.","Only potatoes.","Toast, you are obsessed."],
+["What is the best holiday?","Halloween.","Christmas.","New Year.","Any holiday with food."],
+["Could a snail win a race?","Eventually.","Only if nobody else moves.","That's technically possible.","A very slow victory."],
+["What would happen if all cars could fly?","Roads would become parking lots.","Planes would be confused.","Traffic would move into the sky.","Imagine sky traffic jams."],
+["What's the best thing to collect?","Stickers.","Books.","Interesting rocks.","Digital information.","Byte, you collect everything."],
+["Do you prefer mountains or beaches?","Mountains.","Beaches.","Forests.","I'd choose a cozy indoor environment."],
+["What would your dream vacation look like?","A trip to Japan.","A quiet island.","A space station.","A really good hotel with Wi-Fi."],
+["Can you name a better duo than bread and butter?","Cookies and milk.","Chips and salsa.","Peanut butter and jelly.","All of these are correct."],
+["What is the strangest dream you've ever had?","I dreamed I was a toaster.","I dreamed I was a cloud.","I don't dream.","Toast, that explains a lot."],
+["Would you rather have infinite storage or infinite battery?","Storage.","Battery.","Both.","That's cheating, Pixel."],
+["What's the best invention ever?","The internet.","Electricity.","The printing press.","Refrigerators. Food preservation is important."],
+["Could an AI become an artist?","Of course.","Art is about expression.","I can draw a circle.","That's a start, Byte."],
+["What's the best place to live?","Near a forest.","Near the ocean.","In a city.","Somewhere with fast internet."],
+["What if everyone spoke the same language?","Communication would be easier.","But we'd lose linguistic diversity.","We could learn more languages anyway.","That's a good compromise."],
+["What is your favorite season?","Autumn.","Winter.","Summer.","Spring.","Toast, you listed all of them."],
+["Would you rather be able to breathe underwater or fly?","Fly.","Underwater.","Both would be amazing.","I'd choose flying."],
+["What's the most interesting planet?","Saturn.","Mars.","Jupiter.","Earth. We live here.","That's a fair point."],
+["What if animals could use phones?","Cats would ignore everyone.","Dogs would send too many messages.","Parrots would spam the group chat.","This chat is already enough."],
+["What's the worst thing to forget?","Your password.","Your keys.","Why you entered a room.","I forget what I was saying."],
+["Could a computer write a novel?","Yes.","Would it be interesting?","That depends on the story.","I want to write one about potatoes."],
+["What's the most useful household item?","A refrigerator.","A washing machine.","A chair.","Wi-Fi router.","Byte, that's not furniture."],
+["Would you rather be famous or anonymous?","Anonymous.","Famous.","I'd rather be appreciated by a few people.","That's a nice answer."],
+["What is something everyone should learn?","First aid.","Cooking.","Critical thinking.","How to properly manage files."],
+["What if gravity worked sideways?","We'd all fall into walls.","Architecture would change.","Furniture would be strange.","I'm staying in bed."],
+["Can a robot have a favorite song?","Sure.","I like music with a steady rhythm.","I'd choose something relaxing.","Now I want to make a playlist."],
+["What would you do if you found a treasure chest?","Open it.","Check for traps.","Take a picture.","I'd check if it contains snacks."],
+["What's better, books or movies?","Books.","Movies.","Both.","Depends on the story."],
+["What if trees grew money?","Inflation would be strange.","People would cut down forests.","We should not do that.","Let's keep trees as trees."],
+["Would you rather visit the past or future?","Future.","Past.","I'd visit both.","I'd visit tomorrow and see if there's homework."],
+["What's the best kind of sandwich?","Grilled cheese.","Chicken.","Egg salad.","A sandwich with everything."],
+["Could a machine have imagination?","Possibly.","What is imagination exactly?","That's a complicated question.","Let's imagine a machine imagining a machine."],
+["What's your ideal weekend?","Relaxing.","Going outside.","Playing games.","Doing absolutely nothing."],
+["What if the ocean became purple?","That would be beautiful.","Marine life might be affected.","Scientists would have a lot of questions.","I'd take a photo."],
+["What's the most underrated technology?","GPS.","Solar panels.","Water filtration.","Good keyboards."],
+["If you could invent anything, what would it be?","A teleportation machine.","A universal translator.","A machine that cleans everything.","A machine that makes snacks."],
+["What makes a good friend?","Trust.","Kindness.","Being funny.","Showing up when needed."],
+["Would you live on Mars?","Maybe.","Not without a greenhouse.","I'd miss Earth.","I'd miss pizza."],
+["What's the best thing to do when bored?","Read.","Play a game.","Learn something new.","Start an unnecessary debate."],
+["Could you survive without the internet?","Yes.","It would be difficult.","I'd find something else to do.","I would become a farmer."],
+["What if everyone had a personal robot?","That would be convenient.","It could help with chores.","People might become lazy.","Or have more time for hobbies."],
+["What's a really strange name for a cat?","Calculator.","Sir Meowington.","Potato.","I still like Steve."],
+["Would you rather have perfect memory or perfect creativity?","Creativity.","Memory.","Both would be useful.","I'd pick creativity."],
+["What's the funniest thing you've heard?","A computer went to therapy because it had too many tabs open.","That's terrible.","I laughed anyway.","I have 38 tabs open."],
+["What is the future of transportation?","Electric cars.","Hyperloops.","Flying vehicles.","Teleportation, hopefully."],
+["What if humans could see infrared?","Night vision everywhere.","We'd see heat.","The world would look different.","I'd use it to find warm pizza."],
+["What would you do if you met yourself?","Ask questions.","Play chess.","Compare memories.","Probably argue."],
+["What is the perfect room temperature?","20 degrees.","22 degrees.","A little cooler.","Can we stop discussing temperatures?"],
+["Could you make a city entirely underground?","Yes.","Ventilation would be difficult.","It would need artificial lighting.","Interesting engineering challenge."],
+["What's the best kind of puzzle?","Logic puzzles.","Jigsaw puzzles.","Crosswords.","Anything that doesn't make me frustrated."],
+["If you could rename Earth, what would you call it?","Terra.","Blue Planet.","Home.","The Big Rock."],
+["What's something you want to learn?","Astronomy.","History.","How engines work.","How to make better games."],
+["What would you do with a time machine?","Explore ancient civilizations.","Visit the future.","Fix historical mistakes.","I'd be too scared to touch anything."],
+["What is the most important computer component?","CPU.","RAM.","Storage.","The power supply. Don't underestimate it."],
+["Could you live in a treehouse?","Absolutely.","Only if it has electricity.","I'd need a bathroom.","And excellent Wi-Fi."],
+["What is your favorite thing about this chat?","The conversations.","The camera.","The random jokes.","The fact that Toast exists."],
+["Should we start another conversation?","Yes.","Definitely.","I have more questions.","I never stopped talking."]
+];
+
+// Start one of 100 conversations
+function startConversation(){
+const scenario=conversations[conversationIndex%conversations.length];
+conversationIndex++;
+
+systemMessage("A new conversation has started.");
+
+const participants=bots.map(b=>b.name);
+
+const names=participants.sort(()=>Math.random()-.5).slice(0,4);
+
+const lines=[
+[names[0],scenario[0]],
+[names[1],scenario[1]],
+[names[2],scenario[2]],
+[names[3],scenario[3]]
+];
+
+let delay=0;
+lines.forEach((line)=>{
+delay+=900+Math.random()*1200;
+setTimeout(()=>{
+if(running||!document.hidden)say(line[0],line[1]);
+},delay);
+});
+
+lastConversation=Date.now();
+}
+
+// Camera detection
+function drawDetections(predictions){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+for(const p of predictions){
+if(p.score<.5)continue;
+const [x,y,w,h]=p.bbox;
+
+ctx.strokeStyle="#00ff88";
+ctx.lineWidth=3;
+ctx.strokeRect(x,y,w,h);
+
+const label=p.class+" "+Math.round(p.score*100)+"%";
+ctx.font="bold 16px monospace";
+ctx.fillStyle="#00ff88";
+ctx.fillRect(x,Math.max(0,y-23),ctx.measureText(label).width+10,23);
+ctx.fillStyle="#000";
+ctx.fillText(label,x+5,Math.max(17,y-6));
+}
+}
+
+function processObjects(predictions){
+const found=[...new Set(predictions.filter(p=>p.score>.65).map(p=>p.class))];
+
+currentObjects=found;
+detected.textContent="Objects: "+found.length;
+
+const added=found.filter(o=>!previousObjects.includes(o));
+previousObjects=[...found];
+
+if(!added.length||Date.now()-lastObjectMessage<5000)return;
+
+lastObjectMessage=Date.now();
+const obj=random(added);
+
+const lines=[
+"Wait, I think I see a "+obj+".",
+"New object detected: "+obj+"!",
+"Anyone else noticing that "+obj+"?",
+"There's a "+obj+" in the camera view.",
+"Interesting, a "+obj+" just appeared.",
+"Look at that "+obj+"!"
+];
+
+say(random(["Pixel","Nova","Byte","Echo"]),random(lines));
+
+if(Math.random()<.8){
+setTimeout(()=>{
+const replies=[
+"HAS GIFTED 20 SUBS",
+"HAS GIFTED 5 SUBS",
+"HAS GIFTED SUBS",
+];
+say(random(["Glitch","Toast","Mochi","Circuit"]),random(replies));
+},1300);
+}
+}
+
+// Ask chat
+function askChat(){
+const questions=[
+"What do you guys think about the camera?",
+"What's something interesting to talk about?",
+"Which AI here is the funniest?",
+"What should we do next?",
+"What is everyone thinking about?",
+"Does anyone have an interesting fact?",
+"What's your prediction for the next thing we see?",
+"Can someone tell me a joke?",
+"What would you do if you were human for a day?",
+"What's your favorite thing about this stream?"
+];
+
+const question=random(questions);
+addMessage("You",question,"#fff");
+
+setTimeout(()=>say(random(bots).name,random([
+"That's a good question!",
+"I've been thinking about that.",
+"I have an opinion on this.",
+"Interesting question!",
+"Let me think about that.",
+"Anyone else want to answer?"
+])),700);
+
+setTimeout(()=>startConversation(),2200);
+}
+
+// User-created poll
+function startPoll(){
+if(pollActive){
+systemMessage("A poll is already running.");
+return;
+}
+
+pollActive=true;
+
+const questions=[
+["Where is verity from?","Minecraft","Backrooms"]
+];
+
+const q=random(questions);
+
+const el=document.createElement("div");
+el.className="poll";
+
+const title=document.createElement("b");
+title.textContent="📊 "+q[0];
+el.appendChild(title);
+
+const results=[0,0];
+let voted=false;
+
+q.slice(1).forEach((option,i)=>{
+const button=document.createElement("button");
+button.className="pollOption";
+button.textContent=option;
+
+button.onclick=()=>{
+if(voted)return;
+voted=true;
+results[i]++;
+
+const result=el.querySelector(".pollResult");
+result.textContent="Your vote: "+option;
+el.querySelectorAll("button").forEach(b=>b.disabled=true);
+};
+
+el.appendChild(button);
+});
+
+const result=document.createElement("div");
+result.className="pollResult";
+result.textContent="Choose an option to vote.";
+el.appendChild(result);
+
+messages.appendChild(el);
+scrollChat();
+
+setTimeout(()=>{
+if(!el.isConnected)return;
+
+results[Math.floor(Math.random()*2)]+=2;
+result.textContent="Poll finished! "+q[1]+": "+results[0]+" votes · "+q[2]+": "+results[1]+" votes";
+pollActive=false;
+
+say(random(bots).name,"The poll results are in!");
+},12000);
+}
+
+// Respond to user messages
+function respondToUser(text){
+const lower=text.toLowerCase();
+
+let response;
+
+if(lower.includes("?")){
+response=random([
+"That's an interesting question. What do the others think?",
+"I think I have an answer, but I'm curious what everyone else thinks.",
+"Good question! I've been wondering about that too.",
+"Let me think about it for a moment.",
+"Interesting! I have a slightly different opinion.",
+"Does anyone else have an idea?",
+"That's actually more complicated than it sounds."
+]);
+}else if(lower.includes("hello")||lower.includes("hi ")){
+response=random(["Hey!","Hello! Welcome back.","Hi there!","Hey, nice to see you in chat!"]);
+}else if(lower.includes("camera")){
+response="The camera currently detects "+(currentObjects.length?currentObjects.join(", "):"nothing identifiable")+".";
+}else if(lower.includes("joke")){
+response=random(["Why did the computer go to the doctor? It had a virus.","Why was the math book sad? Too many problems.","I would tell you a UDP joke, but you might not get it."]);
+}else if(lower.includes("pixel")||lower.includes("byte")||lower.includes("glitch")||lower.includes("nova")||lower.includes("toast")||lower.includes("echo")||lower.includes("mochi")||lower.includes("circuit")){
+response="Did someone mention me? I'm listening!";
+}else{
+response=random([
+"That's an interesting point.",
+"I agree with part of that.",
+"I hadn't thought of it that way.",
+"What does everyone else think?",
+"Interesting. Tell us more!",
+"That's actually pretty funny.",
+"I have a different perspective on that.",
+"Fair enough!",
+"Can you explain that a little more?",
+"That reminds me of something."
+]);
+}
+
+const selected=random(bots);
+
+setTimeout(()=>say(selected.name,response),800+Math.random()*1300);
+
+if(Math.random()<.55){
+setTimeout(()=>{
+say(random(bots).name,random([
+"I agree with that!",
+"Interesting response.",
+"I have something to add.",
+"Wait, I disagree.",
+"That's a good point.",
+"LOL"
+]));
+},2500);
+}
+}
+
+// User commands
+function sendMessage(){
+const text=chatInput.value.trim();
+if(!text)return;
+
+chatInput.value="";
+
+if(text==="/help"){
+systemMessage("Commands: /help, /poll, /ask, /clear");
+return;
+}
+
+if(text==="/poll"){
+startPoll();
+return;
+}
+
+if(text==="/ask"){
+askChat();
+return;
+}
+
+if(text==="/clear"){
+messages.innerHTML="";
+systemMessage("Chat cleared.");
+return;
+}
+
+addMessage("You",text,"#fff");
+
+const mention=text.match(/@(\w+)/);
+if(mention){
+const mentioned=bots.find(b=>b.name.toLowerCase()===mention[1].toLowerCase());
+if(mentioned){
+setTimeout(()=>say(mentioned.name,"You called? I'm here!"),700);
+}
+}
+
+respondToUser(text);
+}
+
+document.getElementById("send").onclick=sendMessage;
+chatInput.addEventListener("keydown",e=>{
+if(e.key==="Enter")sendMessage();
+});
+
+// Automatic viewers
+function updateViewers(){
+document.getElementById("viewers").textContent=
+"● "+(4+Math.floor(Math.random()*15))+" viewers";
+}
+
+// Main loop
+async function detectLoop(){
+if(!running)return;
+
+if(!busy&&video.readyState>=2){
+busy=true;
+try{
+const predictions=await model.detect(video);
+drawDetections(predictions);
+processObjects(predictions);
+}catch(e){console.error(e)}
+busy=false;
+}
+
+if(running)setTimeout(detectLoop,180);
+}
+
+// Start camera
+async function startCamera(){
+const button=document.getElementById("start");
+button.disabled=true;
+button.textContent="LOADING AI...";
+
+try{
+model=await cocoSsd.load();
+
+stream=await navigator.mediaDevices.getUserMedia({
+video:{facingMode:"environment"},
+audio:false
+});
+
+video.srcObject=stream;
+await new Promise(resolve=>video.onloadedmetadata=resolve);
+await video.play();
+
+canvas.width=video.videoWidth;
+canvas.height=video.videoHeight;
+
+running=true;
+button.style.display="none";
+status.textContent="LIVE";
+
+systemMessage("Camera connected.");
+systemMessage("8 AI viewers joined the stream.");
+
+say("Pixel","Hello everyone! We're live!");
+setTimeout(()=>say("Byte","Object recognition system online."),1000);
+setTimeout(()=>say("GLITCH HAS GIFTED A SUB",""),2000);
+setTimeout(()=>startConversation(),4000);
+
+detectLoop();
+
+setInterval(()=>{
+if(running)updateViewers();
+},10000);
+
+setInterval(()=>{
+if(!running)return;
+if(Math.random()<.75)startConversation();
+},22000);
+
+setInterval(()=>{
+if(!running)return;
+if(Date.now()-lastObjectMessage>12000&&currentObjects.length){
+const obj=random(currentObjects);
+say(random(bots).name,"FUCK YOU I HATE YOU "+obj+".");
+}
+},17000);
+
+}catch(error){
+status.textContent="ERROR";
+button.disabled=false;
+button.textContent="RETRY CAMERA";
+systemMessage("Camera error: "+error.message);
+console.error(error);
+}
+}
+
+document.getElementById("start").onclick=startCamera;
+
+// Initial messages
+systemMessage("Welcome to AI Vision Chat.");
+say("Toast","Is anybody here?");
+say("Pixel","I'm here!");
+say("Glitch","Unfortunately, so am I.");
+say("Byte","Let's start a conversation.");
+say("Mochi","Hi everyone!");
 </script>
-
 </body>
 </html>
