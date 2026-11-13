@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dual Circle Camera Viewer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #050505; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  #stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 2.2vw; padding: 16px; }
+  .lens { width: min(44vw, 46vh); height: min(44vw, 46vh); max-width: 48vw; max-height: 48vh; border-radius: 50%; overflow: hidden; background: #171717; border: 2px solid #777; box-shadow: 0 0 0 2px #111, 0 0 28px #000; position: relative; }
+  .lens video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .lens.mirror video { transform: scaleX(-1); }
+  #placeholder { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #aaa; padding: 20px; font-size: 14px; }
+  #controls { padding: 12px max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); background: #151515; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; }
+  button, select { color: white; background: #303030; border: 1px solid #555; border-radius: 10px; padding: 11px 14px; font: inherit; font-size: 14px; }
+  button:active { background: #4a4a4a; }
+  button.primary { background: #1769d2; border-color: #3989ef; }
+  #status { flex-basis: 100%; text-align: center; color: #bbb; font-size: 12px; min-height: 16px; }
+  #hiddenVideo { display: none; }
+  @media (orientation: landscape) {
+    #stage { gap: 3vw; }
+    .lens { width: min(42vh, 42vw); height: min(42vh, 42vw); }
+  }
+</style>
+</head>
+<body>
+  <main id="stage">
+    <div class="lens mirror"><video id="leftVideo" autoplay playsinline muted></video></div>
+    <div class="lens mirror"><video id="rightVideo" autoplay playsinline muted></video></div>
+    <div id="placeholder">Tap <b>Start camera</b> and allow camera access.<br>One live camera image will appear in both circles.</div>
+  </main>
+  <section id="controls">
+    <button class="primary" id="start">Start camera</button>
+    <button id="switch" disabled>Switch camera</button>
+    <button id="mirror" disabled>Unmirror</button>
+    <button id="fullscreen">Fullscreen</button>
+    <button id="stop" disabled>Stop</button>
+    <div id="status">Camera access requires permission and usually a secure connection (HTTPS).</div>
+  </section>
+<script>
+(() => {
+  const left = document.getElementById('leftVideo');
+  const right = document.getElementById('rightVideo');
+  const placeholder = document.getElementById('placeholder');
+  const startBtn = document.getElementById('start');
+  const switchBtn = document.getElementById('switch');
+  const mirrorBtn = document.getElementById('mirror');
+  const stopBtn = document.getElementById('stop');
+  const status = document.getElementById('status');
+  let stream = null;
+  let facing = 'environment';
+  let mirrored = true;
+
+  function setStatus(message) { status.textContent = message; }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('Camera access is unavailable here. Open this page in a browser that supports camera access over HTTPS.');
+      return;
+    }
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      });
+      left.srcObject = stream;
+      right.srcObject = stream;
+      await Promise.all([left.play(), right.play()]);
+      placeholder.style.display = 'none';
+      switchBtn.disabled = false;
+      mirrorBtn.disabled = false;
+      stopBtn.disabled = false;
+      startBtn.textContent = 'Restart camera';
+      setStatus('Live camera feed — the same image is shown in both circles.');
+      applyMirror();
+    } catch (err) {
+      const msg = err && err.name === 'NotAllowedError'
+        ? 'Camera permission was denied. Allow camera access in your browser settings and try again.'
+        : 'Could not start the camera: ' + (err.message || err.name || 'unknown error');
+      setStatus(msg);
+    }
+  }
+
+  function applyMirror() {
+    document.querySelectorAll('.lens').forEach(lens => lens.classList.toggle('mirror', mirrored));
+    mirrorBtn.textContent = mirrored ? 'Unmirror' : 'Mirror';
+  }
+
+  function stopCamera() {
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    stream = null;
+    left.srcObject = null;
+    right.srcObject = null;
+    placeholder.style.display = 'grid';
+    switchBtn.disabled = true;
+    mirrorBtn.disabled = true;
+    stopBtn.disabled = true;
+    startBtn.textContent = 'Start camera';
+    setStatus('Camera stopped.');
+  }
+
+  // Try requesting permission when the page opens. If iOS Safari blocks
+  // camera access until a user gesture, the Start Camera button remains available.
+  window.addEventListener('load', () => {
+    setStatus('Requesting camera permission… If iOS does not show a prompt, tap Start camera.');
+    startCamera();
+  });
+
+  startBtn.addEventListener('click', startCamera);
+  switchBtn.addEventListener('click', () => {
+    facing = facing === 'environment' ? 'user' : 'environment';
+    startCamera();
+  });
+  mirrorBtn.addEventListener('click', () => { mirrored = !mirrored; applyMirror(); });
+  stopBtn.addEventListener('click', stopCamera);
+  document.getElementById('fullscreen').addEventListener('click', async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch (_) { setStatus('Fullscreen is not supported by this browser.'); }
+  });
+  window.addEventListener('pagehide', () => {
+    if (stream) stream.getTracks().forEach(track => track.stop());
+  });
+})();
+</script>
+</body>
+</html>
