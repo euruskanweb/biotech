@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dual Circle Camera</title>
+<title>AI Dual Circle Camera</title>
 
 <style>
 * {
@@ -17,6 +17,7 @@ html, body {
     height: 100%;
     overflow: hidden;
     background: black;
+    font-family: Arial, sans-serif;
 }
 
 body {
@@ -69,7 +70,60 @@ canvas {
     font: 16px system-ui;
     text-align: center;
     z-index: 5;
+    cursor: pointer;
 }
+
+#controls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+#description {
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 10px;
+    max-width: 90%;
+    text-align: center;
+    font-size: 15px;
+    min-height: 20px;
+    line-height: 1.5;
+}
+
+#buttons {
+    display: flex;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+button {
+    background: white;
+    color: black;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.5;
+}
+
+#status {
+    color: #aaa;
+    font-size: 12px;
+    text-align: center;
+}
+
 </style>
 </head>
 
@@ -86,7 +140,7 @@ canvas {
     </div>
 
     <div id="placeholder">
-        ACTIVATE RENDERSCORCH
+        TAP TO LOAD RENDERSCORCHBLADE
     </div>
 
 </div>
@@ -94,12 +148,44 @@ canvas {
 <video id="camera" autoplay playsinline muted
        style="display:none"></video>
 
-<script>
+<div id="controls">
+
+    <div id="description">
+        AI description will appear here.
+    </div>
+
+    <div id="status">
+        Camera not started
+    </div>
+
+    <div id="buttons">
+        <button id="describe" disabled>
+            Describe Now
+        </button>
+
+        <button id="speech">
+            Mute Voice
+        </button>
+    </div>
+
+</div>
+
+<script type="module">
+
+import { pipeline } from
+"https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+
 const camera = document.getElementById("camera");
 const placeholder = document.getElementById("placeholder");
 
 const left = document.getElementById("left");
 const right = document.getElementById("right");
+
+const description = document.getElementById("description");
+const status = document.getElementById("status");
+
+const describeButton = document.getElementById("describe");
+const speechButton = document.getElementById("speech");
 
 const ctxLeft = left.getContext("2d", {
     willReadFrequently: true
@@ -112,24 +198,40 @@ const ctxRight = right.getContext("2d", {
 let stream = null;
 let running = false;
 
-// Brightness threshold.
+let captioner = null;
+let modelLoading = false;
+let analyzing = false;
+let muted = false;
+
+let lastDescription = "";
+let lastSpoken = "";
+let lastAnalysis = 0;
+
+const ANALYSIS_INTERVAL = 8000;
+
+// Brightness highlighting settings
 const BRIGHTNESS_THRESHOLD = 245;
-
-// Minimum color saturation.
 const MIN_SATURATION = 0.08;
-
-// Strength of red highlight.
 const RED_STRENGTH = 1;
 
-// Horizontal shift of second circle.
-// Increase to move its viewing position further left.
-const RIGHT_SHIFT = 0.06;
+// Reusable processing canvas
+const temp = document.createElement("canvas");
+temp.width = 960;
+temp.height = 960;
 
+const tempCtx = temp.getContext("2d", {
+    willReadFrequently: true
+});
+
+
+// START CAMERA
 async function startCamera() {
 
     if (stream) return;
 
     try {
+
+        status.textContent = "Starting camera...";
 
         stream = await navigator.mediaDevices.getUserMedia({
             audio: false,
@@ -160,12 +262,13 @@ async function startCamera() {
 
         running = true;
 
+        describeButton.disabled = false;
+
+        status.textContent = "Camera running. Loading AI...";
+
         processFrame();
 
-        console.log(
-            "Camera resolution:",
-            stream.getVideoTracks()[0].getSettings()
-        );
+        loadAI();
 
     } catch (error) {
 
@@ -174,11 +277,51 @@ async function startCamera() {
         placeholder.textContent =
             "Camera access failed. Allow camera access and try again.";
 
+        status.textContent = "Camera error";
+
         stream = null;
 
     }
 }
 
+
+// LOAD IMAGE RECOGNITION AI
+async function loadAI() {
+
+    if (captioner || modelLoading) return;
+
+    modelLoading = true;
+
+    status.textContent =
+        "Downloading image recognition AI...";
+
+    try {
+
+        captioner = await pipeline(
+            "image-to-text",
+            "Xenova/vit-gpt2-image-captioning"
+        );
+
+        status.textContent =
+            "AI ready. Looking at your surroundings.";
+
+        // Start automatic recognition
+        analyzeImage();
+
+    } catch (error) {
+
+        console.error("AI loading error:", error);
+
+        status.textContent =
+            "AI failed to load. Check your internet connection.";
+
+    }
+
+    modelLoading = false;
+}
+
+
+// CAMERA FRAME PROCESSING
 function processFrame() {
 
     if (!running) return;
@@ -194,108 +337,256 @@ function processFrame() {
         return;
     }
 
-    // Center square crop.
+    // Center crop to square
     const side = Math.min(videoWidth, videoHeight);
 
-    const centerX = (videoWidth - side) / 2;
+    const sx = (videoWidth - side) / 2;
     const sy = (videoHeight - side) / 2;
 
-    // Different horizontal camera crops.
-    const sxLeft = centerX;
-    const sxRight = Math.max(
-        0,
-        Math.min(videoWidth - side, centerX - side * RIGHT_SHIFT)
-    );
-
-    // Temporary canvas.
-    const temp = document.createElement("canvas");
-    temp.width = width;
-    temp.height = height;
-
-    const tempCtx = temp.getContext("2d", {
-        willReadFrequently: true
-    });
-
-    // Draw left circle.
     tempCtx.drawImage(
         camera,
-        sxLeft, sy, side, side,
+        sx, sy, side, side,
         0, 0, width, height
     );
 
-    const leftFrame = tempCtx.getImageData(
+    const frame = tempCtx.getImageData(
         0, 0, width, height
     );
 
-    // Draw right circle with shifted viewpoint.
-    tempCtx.drawImage(
-        camera,
-        sxRight, sy, side, side,
-        0, 0, width, height
-    );
+    const pixels = frame.data;
 
-    const rightFrame = tempCtx.getImageData(
-        0, 0, width, height
-    );
+    // Highlight bright colored lights in red
+    for (let i = 0; i < pixels.length; i += 4) {
 
-    // Apply red highlight processing to both images.
-    function processPixels(frame) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
 
-        const pixels = frame.data;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
 
-        for (let i = 0; i < pixels.length; i += 4) {
+        const brightness = (r + g + b) / 3;
 
-            const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
+        const saturation = max === 0
+            ? 0
+            : (max - min) / max;
 
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
+        if (
+            brightness >= BRIGHTNESS_THRESHOLD &&
+            max >= 250 &&
+            saturation >= MIN_SATURATION
+        ) {
 
-            const brightness = (r + g + b) / 3;
+            pixels[i] = 255;
+            pixels[i + 1] = Math.round(
+                g * (1 - RED_STRENGTH)
+            );
+            pixels[i + 2] = Math.round(
+                b * (1 - RED_STRENGTH)
+            );
 
-            const saturation = max === 0
-                ? 0
-                : (max - min) / max;
-
-            if (
-                brightness >= BRIGHTNESS_THRESHOLD &&
-                max >= 250 &&
-                saturation >= MIN_SATURATION
-            ) {
-
-                pixels[i] = 255;
-                pixels[i + 1] = Math.round(
-                    g * (1 - RED_STRENGTH)
-                );
-                pixels[i + 2] = Math.round(
-                    b * (1 - RED_STRENGTH)
-                );
-
-            }
         }
 
-        return frame;
     }
 
-    processPixels(leftFrame);
-    processPixels(rightFrame);
-
-    // Display both circles.
-    ctxLeft.putImageData(leftFrame, 0, 0);
-    ctxRight.putImageData(rightFrame, 0, 0);
+    // Display in both circular cameras
+    ctxLeft.putImageData(frame, 0, 0);
+    ctxRight.putImageData(frame, 0, 0);
 
     requestAnimationFrame(processFrame);
 }
 
-document.getElementById("stage").addEventListener(
-    "click",
-    startCamera
-);
 
+// IMAGE RECOGNITION
+async function analyzeImage() {
+
+    if (!running || !captioner || analyzing) return;
+
+    analyzing = true;
+
+    status.textContent = "AI is analyzing the camera...";
+
+    try {
+
+        // Use the unprocessed camera image for recognition
+        const width = 512;
+        const height = 512;
+
+        const videoWidth = camera.videoWidth;
+        const videoHeight = camera.videoHeight;
+
+        const side = Math.min(videoWidth, videoHeight);
+
+        const sx = (videoWidth - side) / 2;
+        const sy = (videoHeight - side) / 2;
+
+        const recognitionCanvas =
+            document.createElement("canvas");
+
+        recognitionCanvas.width = width;
+        recognitionCanvas.height = height;
+
+        const recognitionCtx =
+            recognitionCanvas.getContext("2d");
+
+        recognitionCtx.drawImage(
+            camera,
+            sx, sy, side, side,
+            0, 0, width, height
+        );
+
+        const image = recognitionCanvas.toDataURL(
+            "image/jpeg",
+            0.85
+        );
+
+        // Ask the AI to describe the image
+        const result = await captioner(image);
+
+        if (!running) return;
+
+        let caption = "";
+
+        if (Array.isArray(result) && result.length > 0) {
+            caption = result[0].generated_text;
+        }
+
+        if (!caption) {
+            caption = "I couldn't identify anything clearly.";
+        }
+
+        caption = caption.trim();
+
+        lastDescription = caption;
+
+        description.textContent = caption;
+
+        status.textContent =
+            "AI recognition complete. Next scan in 8 seconds.";
+
+        // Speak only when the description changes
+        if (
+            !muted &&
+            caption.toLowerCase() !== lastSpoken.toLowerCase()
+        ) {
+
+            speak(caption);
+
+            lastSpoken = caption;
+
+        }
+
+    } catch (error) {
+
+        console.error("Recognition error:", error);
+
+        status.textContent =
+            "Recognition failed. Trying again shortly.";
+
+    }
+
+    analyzing = false;
+
+    lastAnalysis = Date.now();
+
+}
+
+
+// SPEECH
+function speak(text) {
+
+    if (muted || !("speechSynthesis" in window)) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // Prefer an English voice
+    const voices = window.speechSynthesis.getVoices();
+
+    const englishVoice = voices.find(voice =>
+        voice.lang.toLowerCase().startsWith("en")
+    );
+
+    if (englishVoice) {
+        utterance.voice = englishVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+
+}
+
+
+// AUTOMATIC RECOGNITION LOOP
+setInterval(() => {
+
+    if (!running || !captioner || analyzing) return;
+
+    if (
+        Date.now() - lastAnalysis >= ANALYSIS_INTERVAL
+    ) {
+
+        analyzeImage();
+
+    }
+
+}, 1000);
+
+
+// BUTTONS
+placeholder.addEventListener("click", startCamera);
+
+describeButton.addEventListener("click", () => {
+
+    if (!captioner) {
+
+        status.textContent =
+            "AI is still loading. Please wait.";
+
+        return;
+
+    }
+
+    // Allow the same description to be spoken again
+    lastSpoken = "";
+
+    analyzeImage();
+
+});
+
+speechButton.addEventListener("click", () => {
+
+    muted = !muted;
+
+    if (muted) {
+
+        window.speechSynthesis.cancel();
+
+        speechButton.textContent = "Unmute Voice";
+
+    } else {
+
+        speechButton.textContent = "Mute Voice";
+
+        if (lastDescription) {
+            speak(lastDescription);
+        }
+
+    }
+
+});
+
+
+// STOP CAMERA WHEN LEAVING
 window.addEventListener("pagehide", () => {
 
     running = false;
+
+    window.speechSynthesis.cancel();
 
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
