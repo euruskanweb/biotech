@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dual Circle Camera</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#stage {
+    width: 100vw;
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2vw;
+    padding: 2vw;
+}
+
+.lens {
+    width: min(47vw, 48vh);
+    height: min(47vw, 48vh);
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: black;
+    position: relative;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+@media (orientation: landscape) {
+    .lens {
+        width: min(47vw, 88vh);
+        height: min(47vw, 88vh);
+    }
+}
+
+#placeholder {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: white;
+    background: black;
+    font: 16px system-ui;
+    text-align: center;
+    z-index: 5;
+}
+</style>
+</head>
+
+<body>
+
+<div id="stage">
+
+    <div class="lens">
+        <canvas id="left"></canvas>
+    </div>
+
+    <div class="lens">
+        <canvas id="right"></canvas>
+    </div>
+
+    <div id="placeholder">
+        Tap anywhere to start camera
+    </div>
+
+</div>
+
+<video id="camera" autoplay playsinline muted
+       style="display:none"></video>
+
+<script>
+const camera = document.getElementById("camera");
+const placeholder = document.getElementById("placeholder");
+
+const left = document.getElementById("left");
+const right = document.getElementById("right");
+
+const ctxLeft = left.getContext("2d", {
+    willReadFrequently: true
+});
+
+const ctxRight = right.getContext("2d", {
+    willReadFrequently: true
+});
+
+let stream = null;
+let running = false;
+
+// Brightness threshold.
+// Increase this to color only extremely bright lights.
+const BRIGHTNESS_THRESHOLD = 245;
+
+// Minimum amount of color saturation.
+// Helps avoid turning ordinary white objects red.
+const MIN_SATURATION = 0.08;
+
+// Strength of the red highlight.
+const RED_STRENGTH = 1;
+
+async function startCamera() {
+
+    if (stream) return;
+
+    try {
+
+        stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+                facingMode: {
+                    ideal: "environment"
+                },
+                width: {
+                    ideal: 3840
+                },
+                height: {
+                    ideal: 2160
+                },
+                frameRate: {
+                    ideal: 30
+                }
+            }
+        });
+
+        camera.srcObject = stream;
+
+        await camera.play();
+
+        placeholder.style.display = "none";
+
+        left.width = right.width = 960;
+        left.height = right.height = 960;
+
+        running = true;
+
+        processFrame();
+
+        console.log(
+            "Camera resolution:",
+            stream.getVideoTracks()[0].getSettings()
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        placeholder.textContent =
+            "Camera access failed. Allow camera access and try again.";
+
+        stream = null;
+
+    }
+}
+
+function processFrame() {
+
+    if (!running) return;
+
+    const width = left.width;
+    const height = left.height;
+
+    // Draw camera feed into a temporary processing canvas.
+    const temp = document.createElement("canvas");
+    temp.width = width;
+    temp.height = height;
+
+    const tempCtx = temp.getContext("2d", {
+        willReadFrequently: true
+    });
+
+    // Center crop to a square.
+    const videoWidth = camera.videoWidth;
+    const videoHeight = camera.videoHeight;
+    const side = Math.min(videoWidth, videoHeight);
+
+    const sx = (videoWidth - side) / 2;
+    const sy = (videoHeight - side) / 2;
+
+    tempCtx.drawImage(
+        camera,
+        sx, sy, side, side,
+        0, 0, width, height
+    );
+
+    const frame = tempCtx.getImageData(
+        0, 0, width, height
+    );
+
+    const pixels = frame.data;
+
+    for (let i = 0; i < pixels.length; i += 4) {
+
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+
+        const brightness = (r + g + b) / 3;
+
+        const saturation = max === 0
+            ? 0
+            : (max - min) / max;
+
+        // Only highlight very bright, visibly colored light sources.
+        if (
+            brightness >= BRIGHTNESS_THRESHOLD &&
+            max >= 250 &&
+            saturation >= MIN_SATURATION
+        ) {
+
+            pixels[i] = 255;
+            pixels[i + 1] = Math.round(g * (1 - RED_STRENGTH));
+            pixels[i + 2] = Math.round(b * (1 - RED_STRENGTH));
+
+        }
+    }
+
+    // Put processed frame into both circles.
+    ctxLeft.putImageData(frame, 0, 0);
+    ctxRight.putImageData(frame, 0, 0);
+
+    requestAnimationFrame(processFrame);
+}
+
+document.getElementById("stage").addEventListener(
+    "click",
+    startCamera
+);
+
+window.addEventListener("pagehide", () => {
+
+    running = false;
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+
+});
+
+</script>
+
+</body>
+</html>
