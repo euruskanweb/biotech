@@ -49,6 +49,7 @@ video {
     height: 100%;
     display: block;
     object-fit: cover;
+    image-rendering: auto;
 }
 
 @media (orientation: landscape) {
@@ -74,6 +75,7 @@ video {
 <body>
 
 <div id="stage">
+
     <div class="lens">
         <video id="left" autoplay playsinline muted></video>
     </div>
@@ -85,9 +87,11 @@ video {
     <div id="placeholder">
         Tap anywhere to start camera
     </div>
+
 </div>
 
 <script>
+
 const left = document.getElementById("left");
 const right = document.getElementById("right");
 const placeholder = document.getElementById("placeholder");
@@ -95,16 +99,37 @@ const placeholder = document.getElementById("placeholder");
 let stream = null;
 
 async function startCamera() {
+
     if (stream) return;
 
     try {
+
         stream = await navigator.mediaDevices.getUserMedia({
+
             audio: false,
+
             video: {
-                facingMode: "environment",
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
+                facingMode: {
+                    ideal: "environment"
+                },
+
+                width: {
+                    ideal: 3840
+                },
+
+                height: {
+                    ideal: 2160
+                },
+
+                frameRate: {
+                    ideal: 30
+                },
+
+                aspectRatio: {
+                    ideal: 1
+                }
             }
+
         });
 
         left.srcObject = stream;
@@ -117,11 +142,21 @@ async function startCamera() {
 
         placeholder.style.display = "none";
 
+        // Display the actual camera resolution in the console.
+        const settings = stream.getVideoTracks()[0].getSettings();
+
+        console.log("Camera resolution:", settings.width, "x", settings.height);
+        console.log("Frame rate:", settings.frameRate);
+
     } catch (error) {
+
+        console.error(error);
+
         placeholder.textContent =
             "Camera access failed. Allow camera access and tap again.";
 
         stream = null;
+
     }
 }
 
@@ -131,10 +166,13 @@ document.getElementById("stage").addEventListener(
 );
 
 window.addEventListener("pagehide", () => {
+
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
     }
+
 });
+
 </script>
 
 </body>
