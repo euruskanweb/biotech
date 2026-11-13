@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dual Circle Camera</title>
+<title>Dual Circle AI Camera</title>
 
 <style>
 * {
@@ -69,8 +69,33 @@ canvas {
     font: 16px system-ui;
     text-align: center;
     z-index: 5;
+    cursor: pointer;
+    padding: 25px;
 }
+
+#status {
+    position: fixed;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font: 12px monospace;
+    background: rgba(0,0,0,.7);
+    padding: 8px 12px;
+    border-radius: 5px;
+    z-index: 10;
+    pointer-events: none;
+    text-align: center;
+}
+
 </style>
+
+<!-- TensorFlow.js -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+
+<!-- COCO-SSD -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
 </head>
 
 <body>
@@ -86,17 +111,21 @@ canvas {
     </div>
 
     <div id="placeholder">
-        Tap anywhere to start camera
+        Tap anywhere to start SCORCHBLADE
     </div>
 
 </div>
+
+<div id="status">AI not started</div>
 
 <video id="camera" autoplay playsinline muted
        style="display:none"></video>
 
 <script>
+
 const camera = document.getElementById("camera");
 const placeholder = document.getElementById("placeholder");
+const statusText = document.getElementById("status");
 
 const left = document.getElementById("left");
 const right = document.getElementById("right");
@@ -111,21 +140,37 @@ const ctxRight = right.getContext("2d", {
 
 let stream = null;
 let running = false;
+let model = null;
 
-// Brightness threshold.
-// Increase this to color only extremely bright lights.
+let latestDetections = [];
+
+let lastDetectionTime = 0;
+const DETECTION_INTERVAL = 700;
+
+// Brightness highlighting
 const BRIGHTNESS_THRESHOLD = 245;
-
-// Minimum amount of color saturation.
-// Helps avoid turning ordinary white objects red.
 const MIN_SATURATION = 0.08;
-
-// Strength of the red highlight.
 const RED_STRENGTH = 1;
+
+// AI settings
+const CONFIDENCE_THRESHOLD = 0.55;
+
+// Speech settings
+let previousObjects = new Set();
+let speechEnabled = true;
+let lastSpeechTime = 0;
+const SPEECH_COOLDOWN = 1200;
+
+
+// ====================================
+// START CAMERA
+// ====================================
 
 async function startCamera() {
 
-    if (stream) return;
+    if (stream || running) return;
+
+    placeholder.textContent = "Requesting camera access...";
 
     try {
 
@@ -151,31 +196,280 @@ async function startCamera() {
 
         await camera.play();
 
-        placeholder.style.display = "none";
-
         left.width = right.width = 960;
         left.height = right.height = 960;
 
         running = true;
 
+        placeholder.style.display = "none";
+
+        statusText.textContent = "Loading COCO-SSD AI...";
+
+        // Start image processing immediately.
         processFrame();
 
-        console.log(
-            "Camera resolution:",
-            stream.getVideoTracks()[0].getSettings()
-        );
+        // Load object detection model.
+        await loadAI();
 
     } catch (error) {
 
         console.error(error);
 
+        placeholder.style.display = "grid";
+
         placeholder.textContent =
-            "Camera access failed. Allow camera access and try again.";
+            "Camera or AI failed to start. Check camera permissions and internet connection.";
+
+        statusText.textContent = "Startup failed";
+
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
 
         stream = null;
+        running = false;
 
     }
 }
+
+
+// ====================================
+// LOAD AI MODEL
+// ====================================
+
+async function loadAI() {
+
+    try {
+
+        statusText.textContent = "Loading COCO-SSD...";
+
+        await tf.ready();
+
+        model = await cocoSsd.load({
+            base: "lite_mobilenet_v2"
+        });
+
+        statusText.textContent = "AI ready - Looking for objects";
+
+        console.log("COCO-SSD loaded!");
+
+        // Begin object recognition.
+        detectObjects();
+
+    } catch (error) {
+
+        console.error("AI loading error:", error);
+
+        statusText.textContent = "AI failed to load";
+
+    }
+}
+
+
+// ====================================
+// OBJECT DETECTION
+// ====================================
+
+async function detectObjects() {
+
+    if (!running || !model) return;
+
+    if (camera.readyState < 2) {
+        setTimeout(detectObjects, 500);
+        return;
+    }
+
+    try {
+
+        const predictions = await model.detect(camera, 20);
+
+        latestDetections = predictions.filter(item =>
+            item.score >= CONFIDENCE_THRESHOLD
+        );
+
+        // Extract object names.
+        const currentObjects = new Set(
+            latestDetections.map(item => item.class)
+        );
+
+        // Find newly appearing objects.
+        const newObjects = [...currentObjects].filter(
+            name => !previousObjects.has(name)
+        );
+
+        if (newObjects.length > 0) {
+            speakObjects(newObjects);
+        }
+
+        previousObjects = currentObjects;
+
+        // Update status.
+        if (latestDetections.length > 0) {
+
+            statusText.textContent =
+                "Detected: " +
+                [...currentObjects].join(", ");
+
+        } else {
+
+            statusText.textContent =
+                "AI ready - Looking for objects";
+
+        }
+
+    } catch (error) {
+
+        console.error("Detection error:", error);
+
+    }
+
+    // Run detection again.
+    if (running) {
+        setTimeout(detectObjects, DETECTION_INTERVAL);
+    }
+}
+
+
+// ====================================
+// TEXT TO SPEECH
+// ====================================
+
+function speakObjects(objects) {
+
+    if (!speechEnabled) return;
+
+    if (!("speechSynthesis" in window)) {
+        console.warn("Speech synthesis unavailable");
+        return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastSpeechTime < SPEECH_COOLDOWN) {
+        return;
+    }
+
+    // Make object names sound more natural.
+    const formatted = objects.map(name => {
+
+        return name.replace(/_/g, " ");
+
+    });
+
+    let sentence;
+
+    if (formatted.length === 1) {
+
+        sentence = "I see a " + formatted[0] + ".";
+
+    } else {
+
+        sentence =
+            "I see " +
+            formatted.slice(0, -1).join(", ") +
+            " and " +
+            formatted[formatted.length - 1] +
+            ".";
+
+    }
+
+    const utterance = new SpeechSynthesisUtterance(sentence);
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    speechSynthesis.speak(utterance);
+
+    lastSpeechTime = now;
+
+    console.log("AI says:", sentence);
+}
+
+
+// ====================================
+// DRAW DETECTION BOXES
+// ====================================
+
+function drawDetections(ctx, sx, sy, side, width, height) {
+
+    ctx.save();
+
+    ctx.lineWidth = 4;
+    ctx.font = "bold 23px Arial";
+
+    for (const detection of latestDetections) {
+
+        const [x, y, w, h] = detection.bbox;
+
+        // Convert video coordinates to square crop coordinates.
+        const drawX = ((x - sx) / side) * width;
+        const drawY = ((y - sy) / side) * height;
+
+        const drawW = (w / side) * width;
+        const drawH = (h / side) * height;
+
+        // Skip objects outside the crop.
+        if (
+            drawX + drawW < 0 ||
+            drawY + drawH < 0 ||
+            drawX > width ||
+            drawY > height
+        ) continue;
+
+        ctx.strokeStyle = "#00ff55";
+
+        ctx.strokeRect(
+            drawX,
+            drawY,
+            drawW,
+            drawH
+        );
+
+        const label =
+            detection.class +
+            " " +
+            Math.round(detection.score * 100) +
+            "%";
+
+        const labelWidth = ctx.measureText(label).width + 12;
+
+        ctx.fillStyle = "#00cc44";
+
+        ctx.fillRect(
+            drawX,
+            Math.max(0, drawY - 29),
+            labelWidth,
+            29
+        );
+
+        ctx.fillStyle = "black";
+
+        ctx.fillText(
+            label,
+            drawX + 6,
+            Math.max(21, drawY - 8)
+        );
+
+    }
+
+    ctx.restore();
+}
+
+
+// ====================================
+// CAMERA FRAME PROCESSING
+// ====================================
+
+const temp = document.createElement("canvas");
+
+temp.width = 960;
+temp.height = 960;
+
+const tempCtx = temp.getContext("2d", {
+    willReadFrequently: true
+});
+
 
 function processFrame() {
 
@@ -184,18 +478,17 @@ function processFrame() {
     const width = left.width;
     const height = left.height;
 
-    // Draw camera feed into a temporary processing canvas.
-    const temp = document.createElement("canvas");
-    temp.width = width;
-    temp.height = height;
-
-    const tempCtx = temp.getContext("2d", {
-        willReadFrequently: true
-    });
-
-    // Center crop to a square.
     const videoWidth = camera.videoWidth;
     const videoHeight = camera.videoHeight;
+
+    if (!videoWidth || !videoHeight) {
+
+        requestAnimationFrame(processFrame);
+        return;
+
+    }
+
+    // Center crop to a square.
     const side = Math.min(videoWidth, videoHeight);
 
     const sx = (videoWidth - side) / 2;
@@ -213,6 +506,7 @@ function processFrame() {
 
     const pixels = frame.data;
 
+    // Bright colored light detection.
     for (let i = 0; i < pixels.length; i += 4) {
 
         const r = pixels[i];
@@ -228,7 +522,6 @@ function processFrame() {
             ? 0
             : (max - min) / max;
 
-        // Only highlight very bright, visibly colored light sources.
         if (
             brightness >= BRIGHTNESS_THRESHOLD &&
             max >= 250 &&
@@ -236,23 +529,64 @@ function processFrame() {
         ) {
 
             pixels[i] = 255;
-            pixels[i + 1] = Math.round(g * (1 - RED_STRENGTH));
-            pixels[i + 2] = Math.round(b * (1 - RED_STRENGTH));
+
+            pixels[i + 1] = Math.round(
+                g * (1 - RED_STRENGTH)
+            );
+
+            pixels[i + 2] = Math.round(
+                b * (1 - RED_STRENGTH)
+            );
 
         }
+
     }
 
-    // Put processed frame into both circles.
+    // Draw processed camera image.
     ctxLeft.putImageData(frame, 0, 0);
     ctxRight.putImageData(frame, 0, 0);
+
+    // Draw AI detection boxes.
+    drawDetections(ctxLeft, sx, sy, side, width, height);
+    drawDetections(ctxRight, sx, sy, side, width, height);
 
     requestAnimationFrame(processFrame);
 }
 
+
+// ====================================
+// SPEECH CONTROLS
+// ====================================
+
+// Double-click to toggle speech.
+document.getElementById("stage").addEventListener(
+    "dblclick",
+    () => {
+
+        speechEnabled = !speechEnabled;
+
+        if (!speechEnabled) {
+            speechSynthesis.cancel();
+        }
+
+        statusText.textContent = speechEnabled
+            ? "Speech enabled"
+            : "Speech disabled";
+
+    }
+);
+
+
+// Start on click.
 document.getElementById("stage").addEventListener(
     "click",
     startCamera
 );
+
+
+// ====================================
+// CLEANUP
+// ====================================
 
 window.addEventListener("pagehide", () => {
 
@@ -260,6 +594,10 @@ window.addEventListener("pagehide", () => {
 
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
+    }
+
+    if ("speechSynthesis" in window) {
+        speechSynthesis.cancel();
     }
 
 });
