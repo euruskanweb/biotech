@@ -86,7 +86,7 @@ canvas {
     </div>
 
     <div id="placeholder">
-        Tap anywhere to start camera
+        ACTIVATE RENDERSCORCH
     </div>
 
 </div>
@@ -113,15 +113,17 @@ let stream = null;
 let running = false;
 
 // Brightness threshold.
-// Increase this to color only extremely bright lights.
 const BRIGHTNESS_THRESHOLD = 245;
 
-// Minimum amount of color saturation.
-// Helps avoid turning ordinary white objects red.
+// Minimum color saturation.
 const MIN_SATURATION = 0.08;
 
-// Strength of the red highlight.
+// Strength of red highlight.
 const RED_STRENGTH = 1;
+
+// Horizontal shift of second circle.
+// Increase to move its viewing position further left.
+const RIGHT_SHIFT = 0.06;
 
 async function startCamera() {
 
@@ -184,7 +186,28 @@ function processFrame() {
     const width = left.width;
     const height = left.height;
 
-    // Draw camera feed into a temporary processing canvas.
+    const videoWidth = camera.videoWidth;
+    const videoHeight = camera.videoHeight;
+
+    if (!videoWidth || !videoHeight) {
+        requestAnimationFrame(processFrame);
+        return;
+    }
+
+    // Center square crop.
+    const side = Math.min(videoWidth, videoHeight);
+
+    const centerX = (videoWidth - side) / 2;
+    const sy = (videoHeight - side) / 2;
+
+    // Different horizontal camera crops.
+    const sxLeft = centerX;
+    const sxRight = Math.max(
+        0,
+        Math.min(videoWidth - side, centerX - side * RIGHT_SHIFT)
+    );
+
+    // Temporary canvas.
     const temp = document.createElement("canvas");
     temp.width = width;
     temp.height = height;
@@ -193,58 +216,74 @@ function processFrame() {
         willReadFrequently: true
     });
 
-    // Center crop to a square.
-    const videoWidth = camera.videoWidth;
-    const videoHeight = camera.videoHeight;
-    const side = Math.min(videoWidth, videoHeight);
-
-    const sx = (videoWidth - side) / 2;
-    const sy = (videoHeight - side) / 2;
-
+    // Draw left circle.
     tempCtx.drawImage(
         camera,
-        sx, sy, side, side,
+        sxLeft, sy, side, side,
         0, 0, width, height
     );
 
-    const frame = tempCtx.getImageData(
+    const leftFrame = tempCtx.getImageData(
         0, 0, width, height
     );
 
-    const pixels = frame.data;
+    // Draw right circle with shifted viewpoint.
+    tempCtx.drawImage(
+        camera,
+        sxRight, sy, side, side,
+        0, 0, width, height
+    );
 
-    for (let i = 0; i < pixels.length; i += 4) {
+    const rightFrame = tempCtx.getImageData(
+        0, 0, width, height
+    );
 
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
+    // Apply red highlight processing to both images.
+    function processPixels(frame) {
 
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
+        const pixels = frame.data;
 
-        const brightness = (r + g + b) / 3;
+        for (let i = 0; i < pixels.length; i += 4) {
 
-        const saturation = max === 0
-            ? 0
-            : (max - min) / max;
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
 
-        // Only highlight very bright, visibly colored light sources.
-        if (
-            brightness >= BRIGHTNESS_THRESHOLD &&
-            max >= 250 &&
-            saturation >= MIN_SATURATION
-        ) {
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
 
-            pixels[i] = 255;
-            pixels[i + 1] = Math.round(g * (1 - RED_STRENGTH));
-            pixels[i + 2] = Math.round(b * (1 - RED_STRENGTH));
+            const brightness = (r + g + b) / 3;
 
+            const saturation = max === 0
+                ? 0
+                : (max - min) / max;
+
+            if (
+                brightness >= BRIGHTNESS_THRESHOLD &&
+                max >= 250 &&
+                saturation >= MIN_SATURATION
+            ) {
+
+                pixels[i] = 255;
+                pixels[i + 1] = Math.round(
+                    g * (1 - RED_STRENGTH)
+                );
+                pixels[i + 2] = Math.round(
+                    b * (1 - RED_STRENGTH)
+                );
+
+            }
         }
+
+        return frame;
     }
 
-    // Put processed frame into both circles.
-    ctxLeft.putImageData(frame, 0, 0);
-    ctxRight.putImageData(frame, 0, 0);
+    processPixels(leftFrame);
+    processPixels(rightFrame);
+
+    // Display both circles.
+    ctxLeft.putImageData(leftFrame, 0, 0);
+    ctxRight.putImageData(rightFrame, 0, 0);
 
     requestAnimationFrame(processFrame);
 }
